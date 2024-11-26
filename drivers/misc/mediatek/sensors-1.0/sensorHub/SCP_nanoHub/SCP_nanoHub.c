@@ -536,13 +536,9 @@ static void SCP_sensorHub_sync_time_func(unsigned long data)
 
 static int SCP_sensorHub_direct_push_work(void *data)
 {
-	int ret = 0;
-
 	for (;;) {
-		ret = wait_event_interruptible(chre_kthread_wait,
+		wait_event(chre_kthread_wait,
 			READ_ONCE(chre_kthread_wait_condition));
-		if (ret)
-			continue;
 		WRITE_ONCE(chre_kthread_wait_condition, false);
 		mark_timestamp(0, WORK_START, ktime_get_boot_ns(), 0);
 		SCP_sensorHub_read_wp_queue();
@@ -913,11 +909,6 @@ static void SCP_sensorHub_init_sensor_state(void)
 
 	mSensorState[SENSOR_TYPE_SAR].sensorType = SENSOR_TYPE_SAR;
 	mSensorState[SENSOR_TYPE_SAR].timestamp_filter = false;
-
-#ifdef CONFIG_MTK_ULTRASND_PROXIMITY
-       mSensorState[SENSOR_TYPE_ELLIPTIC_FUSION].sensorType = SENSOR_TYPE_ELLIPTIC_FUSION;
-       mSensorState[SENSOR_TYPE_ELLIPTIC_FUSION].timestamp_filter = false;
-#endif
 }
 
 static void init_sensor_config_cmd(struct ConfigCmd *cmd,
@@ -2188,14 +2179,12 @@ static void restoring_enable_sensorHub_sensor(int handle)
 
 void sensorHub_power_up_loop(void *data)
 {
-	int ret = 0, handle = 0;
+	int handle = 0;
 	struct SCP_sensorHub_data *obj = obj_data;
 	unsigned long flags = 0;
 
-	ret = wait_event_interruptible(power_reset_wait,
+	wait_event(power_reset_wait,
 		READ_ONCE(scp_system_ready) && READ_ONCE(scp_chre_ready));
-	if (ret)
-		return;
 	spin_lock_irqsave(&scp_state_lock, flags);
 	WRITE_ONCE(scp_chre_ready, false);
 	WRITE_ONCE(scp_system_ready, false);

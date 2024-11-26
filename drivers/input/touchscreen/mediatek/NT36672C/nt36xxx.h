@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
+#include <linux/hqsysfs.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -39,14 +40,6 @@
 #ifdef CONFIG_SPI_MT65XX
 #include <linux/platform_data/spi-mt65xx.h>
 #endif
-
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 start */
-#define TP_RESUME_EN 1
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 end */
-
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#define TP_SUSPEND_EN 1
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
 
 #define NVT_DEBUG 1
 /*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - start*/
@@ -97,9 +90,7 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #define TOUCH_FORCE_NUM 1000
 
 /* Enable only when module have tp reset pin and connected to host */
-/* Huaqin modify for TP not need tp reset by zhangjiangbin at 2021/07/13 start */
-#define NVT_TOUCH_SUPPORT_HW_RST 0
-/* Huaqin modify for TP not need tp reset by zhangjiangbin at 2021/07/13 end */
+#define NVT_TOUCH_SUPPORT_HW_RST 1
 
 //---Customerized func.---
 #define NVT_TOUCH_PROC 1
@@ -124,13 +115,11 @@ extern char *MP_UPDATE_FIRMWARE_NAME;
 #define POINT_DATA_CHECKSUM_LEN 65
 
 //---ESD Protect.---
-/* Huaqin modify for HQ-140017 by caogaojie at 2021/07/05 start */
-#define NVT_TOUCH_ESD_PROTECT 1
+#define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 #define NVT_TOUCH_WDT_RECOVERY 1
 #define NVT_TOUCH_ESD_DISP_RECOVERY 1
-#define NVT_TOUCH_VDD_TP_RECOVERY 1
-/* Huaqin modify for HQ-140017 by caogaojie at 2021/07/05 end */
+
 struct nvt_ts_data {
 	struct spi_device *client;
 	struct input_dev *input_dev;
@@ -218,26 +207,7 @@ typedef enum {
 	NVTWRITE = 0,
 	NVTREAD  = 1
 } NVT_SPI_RW;
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
-#if NVT_TOUCH_ESD_DISP_RECOVERY
-#define ILM_CRC_FLAG        0x01
-#define DLM_CRC_FLAG        0x02
-#define CRC_DONE            0x04
-#define F2C_RW_READ         0x00
-#define F2C_RW_WRITE        0x01
-#define BIT_F2C_EN          0
-#define BIT_F2C_RW          1
-#define BIT_CPU_IF_ADDR_INC 2
-#define BIT_CPU_POLLING_EN  5
-#define FFM2CPU_CTL         0x3F280
-#define F2C_LENGTH          0x3F283
-#define CPU_IF_ADDR         0x3F284
-#define FFM_ADDR            0x3F286
-#define CP_TP_CPU_REQ       0x3F291
-#define TOUCH_DATA_ADDR     0x20000
-#define DISP_OFF_ADDR       0x2800
-#endif /* NVT_TOUCH_ESD_DISP_RECOVERY */
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
+
 //---extern structures---
 extern struct nvt_ts_data *ts;
 
@@ -261,10 +231,5 @@ int32_t nvt_write_addr(uint32_t addr, uint8_t data);
 #if NVT_TOUCH_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
-#if NVT_TOUCH_VDD_TP_RECOVERY
-void nvt_bootloader_reset_locked(void);
-int32_t nvt_esd_vdd_tp_recovery(void);
-#endif
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
+
 #endif /* _LINUX_NVT_TOUCH_H */

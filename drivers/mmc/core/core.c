@@ -1704,7 +1704,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 		start_err =
 			__mmc_start_data_req(host, mrq);
 		if (!cmdq_en)
-			mt_biolog_mmcqd_req_start(host, mrq);
+			mt_biolog_mmcqd_req_start(host);
 	}
 
 	/* Postprocess the old request at this point */
@@ -1738,9 +1738,6 @@ EXPORT_SYMBOL(mmc_start_areq);
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
-	if (mrq->cmd->retries == 0)
-		mrq->cmd->retries = 3;
-
 	__mmc_start_req(host, mrq);
 
 	if (!mrq->cap_cmd_during_tfr)
@@ -2103,14 +2100,11 @@ int mmc_execute_tuning(struct mmc_card *card)
 
 	err = host->ops->execute_tuning(host, opcode);
 
-	if (err) {
+	if (err)
 		pr_err("%s: tuning execution failed: %d\n",
 			mmc_hostname(host), err);
-	} else {
-		host->retune_now = 0;
-		host->need_retune = 0;
+	else
 		mmc_retune_enable(host);
-	}
 
 	return err;
 }
@@ -2574,13 +2568,7 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 		mmc_power_cycle(host, ocr);
 	} else {
 		bit = fls(ocr) - 1;
-		/*
-		 * The bit variable represents the highest voltage bit set in
-		 * the OCR register.
-		 * To keep a range of 2 values (e.g. 3.2V/3.3V and 3.3V/3.4V),
-		 * we must shift the mask '3' with (bit - 1).
-		 */
-		ocr &= 3 << (bit - 1);
+		ocr &= 3 << bit;
 		if (bit != host->ios.vdd)
 			dev_warn(mmc_dev(host), "exceeding card's volts\n");
 	}
@@ -2626,7 +2614,7 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
-		goto power_cycle;
+		return err;
 
 	if (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR))
 		return -EIO;
@@ -3123,7 +3111,7 @@ static int mmc_cmdq_send_erase_cmd(struct mmc_cmdq_req *cmdq_req,
 	if (err) {
 		pr_notice("%s: group start error %d, status %#x\n",
 				__func__, err, cmd->resp[0]);
-		return (err == -EBADSLT) ? err : -EIO;
+		return -EIO;
 	}
 	return 0;
 }
@@ -3174,8 +3162,7 @@ static int mmc_cmdq_do_erase(struct mmc_cmdq_req *cmdq_req,
 		if (err || (cmd->resp[0] & 0xFDF92000)) {
 			pr_notice("error %d requesting status %#x\n",
 				err, cmd->resp[0]);
-			if (err != -EBADSLT)
-				err = -EIO;
+			err = -EIO;
 			goto out;
 		}
 		/* Timeout if the device never becomes ready for data and

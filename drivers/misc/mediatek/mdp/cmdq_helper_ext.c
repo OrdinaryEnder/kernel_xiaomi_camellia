@@ -42,10 +42,6 @@
 #include <cmdq-sec.h>
 #endif
 
-#if defined(CONFIG_MACH_MT6853)
-#include <soc/mediatek/smi.h>
-#endif
-
 #define CMDQ_GET_COOKIE_CNT(thread) \
 	(CMDQ_REG_GET32(CMDQ_THR_EXEC_CNT(thread)) & CMDQ_MAX_COOKIE_VALUE)
 
@@ -3339,12 +3335,6 @@ static void cmdq_core_group_clk_cb(bool enable,
 				cmdq_core_group_clk_off(index, engine_clk);
 		}
 	}
-
-#if defined(CONFIG_MACH_MT6853)
-	if ((engine_flag & CMDQ_ENG_MDP_GROUP_BITS) && enable)
-		smi_larb_port_check();
-#endif
-
 }
 
 bool cmdq_thread_in_use(void)
@@ -3712,12 +3702,7 @@ void cmdq_core_release_handle_by_file_node(void *file_node)
 		 * immediately, but we cannot do so due to SMI hang risk.
 		 */
 		client = cmdq_clients[(u32)handle->thread];
-#if defined(CMDQ_SECURE_PATH_SUPPORT)
-		if (handle->pkt->sec_data)
-			cmdq_sec_mbox_stop(client);
-		else
-#endif
-			cmdq_mbox_thread_remove_task(client->chan, handle->pkt);
+		cmdq_mbox_thread_remove_task(client->chan, handle->pkt);
 		cmdq_pkt_auto_release_task(handle, true);
 	}
 	mutex_unlock(&cmdq_handle_list_mutex);
@@ -4097,9 +4082,8 @@ s32 cmdq_pkt_copy_cmd(struct cmdqRecStruct *handle, void *src, const u32 size,
 	}
 
 	exec_cost = div_s64(sched_clock() - exec_cost, 1000);
-	if (exec_cost > 2000)
-		CMDQ_LOG("[warn]%s > 2ms cost:%lluus size:%u\n",
-			__func__, exec_cost, size);
+	if (exec_cost > 1000)
+		CMDQ_LOG("[warn]%s > 1ms cost:%lluus\n", __func__, exec_cost);
 
 	return status;
 }
@@ -4497,7 +4481,7 @@ s32 cmdq_pkt_wait_flush_ex_result(struct cmdqRecStruct *handle)
 
 	status = cmdq_pkt_wait_complete(handle->pkt);
 
-	if (handle->profile_exec && cmdq_util_is_feature_en(CMDQ_LOG_FEAT_PERF)) {
+	if (handle->profile_exec) {
 		u32 *va = cmdq_pkt_get_perf_ret(handle->pkt);
 
 		if (va) {
@@ -4510,13 +4494,7 @@ s32 cmdq_pkt_wait_flush_ex_result(struct cmdqRecStruct *handle)
 				u32 cost = va[1] < va[0] ?
 					~va[0] + va[1] : va[1] - va[0];
 
-#if BITS_PER_LONG == 64
 				do_div(cost, 26);
-#elif BITS_PER_LONG == 32
-				cost /= 26;
-#else
-		#error "unsigned long division is not supported for this architecture"
-#endif
 				if (cost > 80000) {
 					CMDQ_LOG(
 						"[WARN]task executes %uus engine:%#llx caller:%llu-%s\n",
@@ -4747,6 +4725,7 @@ s32 cmdq_pkt_flush_async_ex(struct cmdqRecStruct *handle,
 		if (thread == CMDQ_INVALID_THREAD || err == -EBUSY)
 			return err;
 		/* client may already wait for flush done, trigger as error */
+		handle->state = TASK_STATE_ERROR;
 		wake_up(&cmdq_wait_queue[(u32)thread]);
 		return err;
 	}
@@ -4843,12 +4822,9 @@ void cmdq_core_dump_active(void)
 			break;
 
 		CMDQ_LOG(
-			"[warn] waiting task %u cost time:%lluus submit:%llu enging:%#llx thd:%d caller:%llu-%s sec:%s handle:%p\n",
+			"[warn] waiting task %u cost time:%lluus submit:%llu enging:%#llx caller:%llu-%s\n",
 			idx, cost, task->submit, task->engineFlag,
-			task->thread,
-			(u64)task->caller_pid, task->caller_name,
-			task->secData.is_secure ? "true" : "false",
-			task);
+			(u64)task->caller_pid, task->caller_name);
 		idx++;
 	}
 	mutex_unlock(&cmdq_handle_list_mutex);

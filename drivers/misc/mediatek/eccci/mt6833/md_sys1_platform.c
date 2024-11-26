@@ -497,9 +497,6 @@ void md_cd_lock_modem_clock_src(int locked)
 		int settle = mt_secure_call(MD_CLOCK_REQUEST,
 				MD_REG_AP_MDSRC_SETTLE, 0, 0, 0, 0, 0);
 
-		if (!(settle > 0 && settle < 10))
-			settle = 3;
-
 		mdelay(settle);
 		ret = mt_secure_call(MD_CLOCK_REQUEST,
 				MD_REG_AP_MDSRC_ACK, 0, 0, 0, 0, 0);
@@ -541,11 +538,6 @@ void md_cd_get_md_bootup_status(
 
 	CCCI_NOTICE_LOG(md->index, TAG, "md_boot_stats len %d\n", length);
 
-	if (md_info == NULL || md_reg == NULL) {
-		CCCI_NOTICE_LOG(md->index, TAG,
-		 "md_info or md_reg not init skip get md boot status\n");
-		return;
-	}
 	if (length < 2 || buff == NULL) {
 		md_cd_dump_md_bootup_status(md);
 		return;

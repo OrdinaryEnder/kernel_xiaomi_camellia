@@ -1364,7 +1364,7 @@ skip_update:
 static int eemg_volt_thread_handler(void *data)
 {
 	struct eemg_ctrl *ctrl = (struct eemg_ctrl *)data;
-	struct eemg_det *det;
+	struct eemg_det *det = id_to_eemg_det(ctrl->det_id);
 #ifdef CONFIG_EEMG_AEE_RR_REC
 	int temp = -1;
 #endif
@@ -1373,12 +1373,6 @@ static int eemg_volt_thread_handler(void *data)
 	/* struct eemg_det *new_det; */
 	/* unsigned int init2chk = 0; */
 #endif
-	if (ctrl == NULL)
-		return 0;
-
-	det = id_to_eemg_det(ctrl->det_id);
-	if (det == NULL)
-		return 0;
 
 	FUNC_ENTER(FUNC_LV_HELP);
 	do {
@@ -1483,7 +1477,7 @@ static unsigned int eemg_vmin_init(void)
 {
 	int vmin_idx = (get_devinfo_with_index(209) >> 9) & 3;
 
-	return vmin_idx == 0x2 ? 0x20 : vmin_idx == 0x1 ? 0x24 : 0x1C;
+	return vmin_idx == 0x2 ? 0x20 : 0x1C;
 }
 
 static void eemg_init_det(struct eemg_det *det, struct eemg_devinfo *devinfo)
@@ -1599,9 +1593,6 @@ static void eemg_set_eemg_volt(struct eemg_det *det)
 {
 #if SET_PMIC_VOLT
 	struct eemg_ctrl *ctrl = id_to_eemg_ctrl(det->ctrl_id);
-
-	if (ctrl == NULL)
-		return;
 
 	FUNC_ENTER(FUNC_LV_HELP);
 	ctrl->volt_update |= EEMG_VOLT_UPDATE;
@@ -1814,8 +1805,6 @@ static void read_volt_from_VOP(struct eemg_det *det)
 	/* Check both high/low bank's voltage are ready */
 	if (det->loo_role != 0) {
 		couple_det = id_to_eemg_det(det->loo_couple);
-		if (couple_det == NULL)
-			return;
 		if ((couple_det->init2_done == 0) ||
 			(couple_det->mon_vop30 == 0) ||
 			(couple_det->mon_vop74 == 0))

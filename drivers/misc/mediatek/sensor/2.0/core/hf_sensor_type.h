@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +16,6 @@
 #define _HF_SENSOR_TYPE_H_
 
 enum {
-	SENSOR_TYPE_INVALID = 0,
 	/* follow google default sensor type */
 	SENSOR_TYPE_ACCELEROMETER = 1,
 	SENSOR_TYPE_MAGNETIC_FIELD,
@@ -72,10 +72,9 @@ enum {
 	SENSOR_TYPE_RGBW,
 	SENSOR_TYPE_GYRO_TEMPERATURE,
 	SENSOR_TYPE_SAR,
-	SENSOR_TYPE_SAR_SECONDARY = 74,
 	SENSOR_TYPE_OIS,
 	SENSOR_TYPE_GYRO_SECONDARY,
-	SENSOR_TYPE_ELLIPTIC_FUSION,
+	SENSOR_TYPE_REAR_LIGHT,
 	SENSOR_TYPE_SENSOR_MAX,
 };
 
@@ -138,10 +137,9 @@ enum {
 	ID_RGBW,
 	ID_GYRO_TEMPERATURE,
 	ID_SAR,
-	ID_SAR_SECONDARY = SENSOR_TYPE_SAR_SECONDARY - ID_OFFSET,
 	ID_OIS,
 	ID_GYRO_SECONDARY,
-	ID_ELLIPTIC_FUSION,
+	ID_REAR_LIGHT,
 	ID_SENSOR_MAX,
 };
 

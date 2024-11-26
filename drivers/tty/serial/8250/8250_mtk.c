@@ -51,11 +51,6 @@
 #define MTK_UART_SLEEP_REQ	0x2d	/* Sleep request register */
 #define MTK_UART_SLEEP_ACK	0x2e	/* Sleep ack register */
 
-#define MTK_UART_DLL  0x24
-#define MTK_UART_DLH  0x25
-#define MTK_UART_FEATURE_SEL  0x27
-#define MTK_UART_EFR    0x26
-
 #define MTK_UART_IER_XOFFI	0x20	/* Enable XOFF character interrupt */
 #define MTK_UART_IER_RTSI	0x40	/* Enable RTS Modem status interrupt */
 #define MTK_UART_IER_CTSI	0x80	/* Enable CTS Modem status interrupt */
@@ -236,9 +231,9 @@ static void mtk8250_dma_enable(struct uart_8250_port *up)
 		UART_FCR_CLEAR_XMIT);
 	serial_out(up, MTK_UART_DMA_EN,	MTK_UART_DMA_EN_RX|MTK_UART_DMA_EN_TX);
 
-	serial_out(up, MTK_UART_FEATURE_SEL, 0x1);
-	serial_out(up, MTK_UART_EFR, UART_EFR_ECB);
-	serial_out(up, MTK_UART_FEATURE_SEL, 0x0);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	serial_out(up, UART_EFR, UART_EFR_ECB);
+	serial_out(up, UART_LCR, lcr);
 
 	if (dmaengine_slave_config(dma->rxchan, &dma->rxconf) != 0)
 		pr_err("failed to configure rx dma channel\n");
@@ -295,18 +290,21 @@ static void mtk8250_set_flow_ctrl(struct uart_8250_port *up, int mode)
 	struct uart_port *port = &up->port;
 	int lcr = serial_in(up, UART_LCR);
 
-	serial_out(up, MTK_UART_FEATURE_SEL, 0x1);
-	serial_out(up, MTK_UART_EFR, UART_EFR_ECB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	serial_out(up, UART_EFR, UART_EFR_ECB);
+	serial_out(up, UART_LCR, lcr);
+	lcr = serial_in(up, UART_LCR);
 
 	switch (mode) {
 	case MTK_UART_FC_NONE:
 		serial_out(up, MTK_UART_ESCAPE_DAT, MTK_UART_ESCAPE_CHAR);
 		serial_out(up, MTK_UART_ESCAPE_EN, 0x00);
-		serial_out(up, MTK_UART_EFR, serial_in(up, UART_EFR) &
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_out(up, UART_EFR, serial_in(up, UART_EFR) &
 			(~(MTK_UART_EFR_HW_FC | MTK_UART_EFR_SW_FC_MASK)));
+		serial_out(up, UART_LCR, lcr);
 		mtk8250_disable_intrs(up, MTK_UART_IER_XOFFI |
 			MTK_UART_IER_RTSI | MTK_UART_IER_CTSI);
-		serial_out(up, MTK_UART_FEATURE_SEL, 0x0);
 		break;
 
 	case MTK_UART_FC_HW:
@@ -314,22 +312,27 @@ static void mtk8250_set_flow_ctrl(struct uart_8250_port *up, int mode)
 		serial_out(up, MTK_UART_ESCAPE_EN, 0x00);
 		serial_out(up, UART_MCR, UART_MCR_RTS);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
 		/*enable hw flow control*/
 		serial_out(up, UART_EFR, MTK_UART_EFR_HW_FC |
 			(serial_in(up, UART_EFR) &
 			(~(MTK_UART_EFR_HW_FC | MTK_UART_EFR_SW_FC_MASK))));
+
 		serial_out(up, UART_LCR, lcr);
 		mtk8250_disable_intrs(up, MTK_UART_IER_XOFFI);
 		mtk8250_enable_intrs(up, MTK_UART_IER_CTSI | MTK_UART_IER_RTSI);
 		break;
+
 	case MTK_UART_FC_SW:	/*MTK software flow control */
 		serial_out(up, MTK_UART_ESCAPE_DAT, MTK_UART_ESCAPE_CHAR);
 		serial_out(up, MTK_UART_ESCAPE_EN, 0x01);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
 		/*enable sw flow control */
 		serial_out(up, UART_EFR, MTK_UART_EFR_XON1_XOFF1 |
 			(serial_in(up, UART_EFR) &
 			(~(MTK_UART_EFR_HW_FC | MTK_UART_EFR_SW_FC_MASK))));
+
 		serial_out(up, UART_XON1, START_CHAR(port->state->port.tty));
 		serial_out(up, UART_XOFF1, STOP_CHAR(port->state->port.tty));
 		serial_out(up, UART_LCR, lcr);
@@ -361,20 +364,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 #endif
 
-	/*
-	 * Store the requested baud rate before calling the generic 8250
-	 * set_termios method. Standard 8250 port expects bauds to be
-	 * no higher than (uartclk / 16) so the baud will be clamped if it
-	 * gets out of that bound. Mediatek 8250 port supports speed
-	 * higher than that, therefore we'll get original baud rate back
-	 * after calling the generic set_termios method and recalculate
-	 * the speed later in this method.
-	 */
-	baud = tty_termios_baud_rate(termios);
-
-	serial8250_do_set_termios(port, termios, NULL);
-
-	tty_termios_encode_baud_rate(termios, baud, baud);
+	serial8250_do_set_termios(port, termios, old);
 
 	/*
 	 * Mediatek UARTs use an extra highspeed register (MTK_UART_HIGHS)
@@ -413,11 +403,6 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&port->lock, flags);
-
-	/*
-	 * Update the per-port timeout.
-	 */
-	uart_update_timeout(port, termios->c_cflag, baud);
 
 	/* set DLAB we have cval saved in up->lcr from the call to the core */
 	serial_port_out(port, UART_LCR, up->lcr | UART_LCR_DLAB);
@@ -797,6 +782,12 @@ static void mtk8250_save_dev(struct device *dev)
 
 	/* DLL may be changed by console write. To avoid this, use spinlock */
 	spin_lock_irqsave(&up->port.lock, flags);
+
+	/* save when LCR = 0xBF */
+	reg->lcr = serial_in(up, UART_LCR);
+	serial_out(up, UART_LCR, 0xBF);
+	reg->efr = serial_in(up, UART_EFR);
+	serial_out(up, UART_LCR, reg->lcr);
 	reg->fcr_rd = serial_in(up, MTK_UART_FCR_RD);
 
 	/*save baudrate */
@@ -807,14 +798,6 @@ static void mtk8250_save_dev(struct device *dev)
 	reg->dll = serial_in(up, UART_DLL);
 	reg->dlm = serial_in(up, UART_DLM);
 	serial_out(up, UART_LCR, reg->lcr);
-
-	serial_out(up, MTK_UART_FEATURE_SEL, 0x1);
-	serial_out(up, MTK_UART_EFR, reg->efr);
-
-	reg->dll = serial_in(up, MTK_UART_DLL);
-	reg->dlm = serial_in(up, MTK_UART_DLH);
-	serial_out(up, MTK_UART_FEATURE_SEL, 0x0);
-
 	reg->sample_count = serial_in(up, MTK_UART_SAMPLE_COUNT);
 	reg->sample_point = serial_in(up, MTK_UART_SAMPLE_POINT);
 	reg->guard = serial_in(up, MTK_UART_GUARD);
@@ -863,6 +846,11 @@ void mtk8250_backup_dev(void)
 
 		spin_lock_irqsave(&up->port.lock, flags);
 
+		/* save when LCR = 0xBF */
+		reg->lcr = serial_in(up, UART_LCR);
+		serial_out(up, UART_LCR, 0xBF);
+		reg->efr = serial_in(up, UART_EFR);
+		serial_out(up, UART_LCR, reg->lcr);
 		reg->fcr_rd = serial_in(up, MTK_UART_FCR_RD);
 
 		/*save baudrate */
@@ -873,14 +861,6 @@ void mtk8250_backup_dev(void)
 		reg->dll = serial_in(up, UART_DLL);
 		reg->dlm = serial_in(up, UART_DLM);
 		serial_out(up, UART_LCR, reg->lcr);
-
-		serial_out(up, MTK_UART_FEATURE_SEL, 0x1);
-		serial_out(up, MTK_UART_EFR, reg->efr);
-
-		reg->dll = serial_in(up, MTK_UART_DLL);
-		reg->dlm = serial_in(up, MTK_UART_DLH);
-		serial_out(up, MTK_UART_FEATURE_SEL, 0x0);
-
 		reg->sample_count = serial_in(up, MTK_UART_SAMPLE_COUNT);
 		reg->sample_point = serial_in(up, MTK_UART_SAMPLE_POINT);
 		reg->guard = serial_in(up, MTK_UART_GUARD);
@@ -930,6 +910,10 @@ void mtk8250_restore_dev(void)
 		mtk8250_runtime_resume(up->port.dev);
 		spin_lock_irqsave(&up->port.lock, flags);
 
+		/* restore when LCR = 0xBF */
+		serial_out(up, UART_LCR, 0xBF);
+		serial_out(up, UART_EFR, reg->efr);
+		serial_out(up, UART_LCR, reg->lcr);
 		serial_out(up, UART_FCR, reg->fcr_rd);
 
 		/*restore baudrate */
@@ -940,15 +924,6 @@ void mtk8250_restore_dev(void)
 		serial_out(up, UART_DLL, reg->dll);
 		serial_out(up, UART_DLM, reg->dlm);
 		serial_out(up, UART_LCR, reg->lcr);
-
-		serial_out(up, MTK_UART_FEATURE_SEL, 0x1);
-
-		serial_out(up, MTK_UART_EFR, reg->efr);
-
-		serial_out(up, MTK_UART_DLL, reg->dll);
-		serial_out(up, MTK_UART_DLH, reg->dlm);
-		serial_out(up, MTK_UART_FEATURE_SEL, 0x0);
-
 		serial_out(up, MTK_UART_SAMPLE_COUNT, reg->sample_count);
 		serial_out(up, MTK_UART_SAMPLE_POINT, reg->sample_point);
 		serial_out(up, MTK_UART_GUARD, reg->guard);

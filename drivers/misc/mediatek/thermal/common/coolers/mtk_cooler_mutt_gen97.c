@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,7 +27,10 @@
 #include <linux/uidgid.h>
 #include <mtk_cooler_setting.h>
 #include <linux/debugfs.h>
+
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
 #include <mtk_cooler_mutt_gen97.h>
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 /****************************************************************************
  *  Macro Definitions
@@ -45,6 +49,47 @@
 #define TMC_NO_IMS_LEVEL		(TMC_COOLER_LV8)
 #define TMC_MD_OFF_LEVEL		(0xFF)
 
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+#if 0
+#define TMC_CA_CTRL_CA_ON \
+	(TMC_CTRL_CMD_CA_CTRL | TMC_CA_ON << 8)
+#define TMC_CA_CTRL_CA_OFF \
+	(TMC_CTRL_CMD_CA_CTRL | TMC_CA_OFF << 8)
+#define TMC_PA_CTRL_PA_ALL_ON \
+	(TMC_CTRL_CMD_PA_CTRL | TMC_PA_ALL_ON << 8)
+#define TMC_PA_CTRL_PA_OFF_1PA \
+	(TMC_CTRL_CMD_PA_CTRL | TMC_PA_OFF_1PA << 8)
+#define TMC_THROTTLING_THROT_DISABLE \
+	(TMC_CTRL_CMD_THROTTLING | TMC_THROT_DISABLE << 8)
+#define MUTT_THROTTLING_IMS_ENABLE \
+	(TMC_CTRL_CMD_THROTTLING | TMC_THROT_ENABLE_IMS_ENABLE << 8)
+#define MUTT_THROTTLING_IMS_DISABLE \
+	(TMC_CTRL_CMD_THROTTLING | TMC_THROT_ENABLE_IMS_DISABLE << 8)
+#define MUTT_TMC_COOLER_LV_ENABLE \
+	(TMC_CTRL_CMD_COOLER_LV | TMC_COOLER_LV_ENABLE << 8)
+#define MUTT_TMC_COOLER_LV_DISABLE \
+	(TMC_CTRL_CMD_COOLER_LV | TMC_COOLER_LV_DISABLE << 8)
+#define TMC_COOLER_LV_CTRL00 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV0 << 16)
+#define TMC_COOLER_LV_CTRL01 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV1 << 16)
+#define TMC_COOLER_LV_CTRL02 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV2 << 16)
+#define TMC_COOLER_LV_CTRL03 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV3 << 16)
+#define TMC_COOLER_LV_CTRL04 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV4 << 16)
+#define TMC_COOLER_LV_CTRL05 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV5 << 16)
+#define TMC_COOLER_LV_CTRL06 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV6 << 16)
+#define TMC_COOLER_LV_CTRL07 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV7 << 16)
+#define TMC_COOLER_LV_CTRL08 (MUTT_TMC_COOLER_LV_ENABLE | TMC_COOLER_LV8 << 16)
+#define TMC_COOLER_LV_RAT_LTE	(TMC_OVERHEATED_LTE << 24)
+#define TMC_COOLER_LV_RAT_NR	(TMC_OVERHEATED_NR << 24)
+#define TMC_REDUCE_OTHER_MAX_TX_POWER(pwr) \
+	(TMC_CTRL_CMD_TX_POWER \
+	| (TMC_TW_PWR_REDUCE_OTHER_MAX_TX_EVENT << 16)	\
+	| (pwr << 24))
+#define TMC_REDUCE_NR_MAX_TX_POWER(pwr) \
+	(TMC_CTRL_CMD_TX_POWER \
+	| (TMC_TW_PWR_REDUCE_NR_MAX_TX_EVENT << 16)	\
+	| (pwr << 24))
+#endif
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 #if 0
 /*
@@ -56,6 +101,9 @@
 #endif
 
 /* State of "MD off & noIMS" are not included. */
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+//#define MAX_NUM_INSTANCE_MTK_COOLER_MUTT  8
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 #define MAX_NUM_TX_PWR_LV  3
 
 #define MTK_CL_MUTT_GET_LIMIT(limit, state) \
@@ -83,8 +131,10 @@ do { \
 #define for_each_tx_pwr_lv(i)  for (i = 0; i < MAX_NUM_TX_PWR_LV; i++)
 
 /* LOG */
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
 #define mtk_cooler_mutt_dprintk_always(fmt, args...) \
 pr_notice("[Thermal/TC/mutt]" fmt, ##args)
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 #define mtk_cooler_mutt_dprintk(fmt, args...) \
 do { \
@@ -134,6 +184,7 @@ enum {
 	 */
 	TM_CLIENT_clmutt = 3
 };
+
 
 /****************************************************************************
  *  Type Definitions
@@ -305,6 +356,7 @@ static void clmutt_cooler_param_reset(unsigned long mdoff_state)
 	}
 }
 
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
 unsigned int clmutt_level_selection(int lv, unsigned int type)
 {
 	unsigned int ctrl_lv = 0;
@@ -352,6 +404,7 @@ unsigned int clmutt_level_selection(int lv, unsigned int type)
 
 	return ctrl_lv;
 }
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 static int clmutt_send_tmc_cmd(unsigned int cmd)
 {
