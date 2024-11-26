@@ -109,10 +109,6 @@ subdir-ccflags-y += -DMT6853T
 subdir-ccflags-y += -DMC50_LOAD
 endif
 
-ifeq ($(PROJECT_DTB_NAMES),mediatek/k6853v1_64_swrgo)
-subdir-ccflags-y += -DDISABLE_EEM
-endif
-
 obj-y += mtk_eem.o
 obj-y += mtk_eem_platform.o
 obj-y += mtk_eem_internal.o

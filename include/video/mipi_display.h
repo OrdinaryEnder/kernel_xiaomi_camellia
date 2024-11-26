@@ -3,7 +3,6 @@
  * Display Working Group standards: DSI, DCS, DBI, DPI
  *
  * Copyright (C) 2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (C) 2006 Nokia Corporation
  * Author: Imre Deak <imre.deak@nokia.com>
  *
@@ -60,6 +59,8 @@ enum {
 	MIPI_DSI_PACKED_PIXEL_STREAM_18			= 0x1e,
 	MIPI_DSI_PIXEL_STREAM_3BYTE_18			= 0x2e,
 	MIPI_DSI_PACKED_PIXEL_STREAM_24			= 0x3e,
+	MIPI_DCS_PAGE_ZERO		= 0x10,
+	MIPI_DCS_UPDATE_PAGE		= 0xFF
 };
 
 /* MIPI DSI Peripheral-to-Processor transaction types */
@@ -126,10 +127,6 @@ enum {
 	MIPI_DCS_GET_CABC_MIN_BRIGHTNESS = 0x5F,	/* MIPI DCS 1.3 */
 	MIPI_DCS_READ_DDB_START		= 0xA1,
 	MIPI_DCS_READ_DDB_CONTINUE	= 0xA8,
-	/* BSP.LCM - 2020.12.22 - start */
-	MIPI_DCS_PAGE_ZERO		= 0x10,
-	MIPI_DCS_UPDATE_PAGE		= 0xFF
-	/* BSP.LCM - 2020.12.22 - end */
 };
 
 /* MIPI DCS pixel formats */

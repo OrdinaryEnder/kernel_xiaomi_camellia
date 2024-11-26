@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,8 +22,7 @@
 #define EMBEDDED_SEL 0
 #define PMIC_SHUTDOWN_CURRENT 20	/* 0.01 mA */
 #define FG_METER_RESISTANCE	100
-/* BSP.Charger - 2020.12.29 - modify CAR_TUNE_VALUE */
-#define CAR_TUNE_VALUE	101 /*1.01 */
+#define CAR_TUNE_VALUE	100 /*1.00 */
 #define NO_BAT_TEMP_COMPENSATE 0
 /* NO_BAT_TEMP_COMPENSATE 1 = don't need bat_temper compensate, */
 /* but fg_meter_resistance still use for SWOCV */
@@ -174,8 +172,9 @@
 #define DIFF_IAVG_TH 3000
 
 /* ZCV INTR */
-#define ZCV_SUSPEND_TIME 3
+#define ZCV_SUSPEND_TIME 7
 #define SLEEP_CURRENT_AVG 200 /*0.1mA*/
+#define ZCV_COM_VOL_LIMIT 50 /* 50mv */
 #define ZCV_CAR_GAP_PERCENTAGE 5
 
 /* Additional battery table */
@@ -243,6 +242,20 @@
 
 #define UI_FULL_LIMIT_TIME 99999
 
+#define UI_FULL_LIMIT_FC_SOC0 9900
+#define UI_FULL_LIMIT_FC_ITH0 3000
+
+#define UI_FULL_LIMIT_FC_SOC1 9900
+#define UI_FULL_LIMIT_FC_ITH1 3100
+
+#define UI_FULL_LIMIT_FC_SOC2 9900
+#define UI_FULL_LIMIT_FC_ITH2 3200
+
+#define UI_FULL_LIMIT_FC_SOC3 9900
+#define UI_FULL_LIMIT_FC_ITH3 3300
+
+#define UI_FULL_LIMIT_FC_SOC4 9900
+#define UI_FULL_LIMIT_FC_ITH4 3400
 
 /* using voltage to limit uisoc in 1% case */
 /* UI_LOW_LIMIT_VTH0=36000 means 3.6v */

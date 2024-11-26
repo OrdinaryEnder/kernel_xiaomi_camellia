@@ -3,7 +3,6 @@
  * f2fs sysfs interface
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- * Copyright (C) 2021 XiaoMi, Inc.
  *             http://www.samsung.com/
  * Copyright (c) 2017 Chao Yu <chao@kernel.org>
  */
@@ -18,7 +17,7 @@
 #include "gc.h"
 #include <trace/events/f2fs.h>
 
-struct proc_dir_entry *f2fs_proc_root;
+static struct proc_dir_entry *f2fs_proc_root;
 
 /* Sysfs support for f2fs */
 enum {
@@ -976,4 +975,5 @@ void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 	}
 	kobject_del(&sbi->s_kobj);
 	kobject_put(&sbi->s_kobj);
+	wait_for_completion(&sbi->s_kobj_unregister);
 }

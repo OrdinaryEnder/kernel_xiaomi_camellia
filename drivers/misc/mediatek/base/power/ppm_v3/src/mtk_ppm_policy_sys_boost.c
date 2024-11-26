@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -549,11 +548,9 @@ static int __init ppm_sysboost_policy_init(void)
 		case BOOST_BY_BOOT_TIME_OPT:
 			sysboost_data[i].user_name = "BOOT_TIME_OPT";
 			break;
-		/* BSP.System - 2020.11.16 - Config thermal framework - start */
 		case BOOST_BY_XM_THERMAL:
 			sysboost_data[i].user_name = "XM_THERM";
 			break;
-		/* BSP.System - 2020.11.16 - Config thermal framework - start */
 		case BOOST_BY_UT:
 		default:
 			sysboost_data[i].user_name = "UT";

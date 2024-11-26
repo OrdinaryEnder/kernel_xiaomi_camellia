@@ -131,18 +131,6 @@ static int dump_power_proc_show(struct seq_file *m, void *v)
 
 static int dump_lkg_power_proc_show(struct seq_file *m, void *v)
 {
-	int i, j;
-
-	if (!swpm_info_ref)
-		return 0;
-
-	for (i = 0; i < NR_CPU_LKG_TYPE; i++) {
-		for (j = 0; j < 16; j++) {
-			seq_printf(m, "type %d opp%d lkg = %d\n", i, j,
-				swpm_info_ref->cpu_lkg_pwr[i][j]);
-		}
-	}
-
 	return 0;
 }
 
@@ -188,7 +176,6 @@ static ssize_t gpu_debug_proc_write(struct file *file,
 
 	if (!kstrtouint(buf, 10, &enable_time)) {
 		swpm_gpu_debug = (enable_time) ? true : false;
-#if 1
 		if (swpm_gpu_debug) {
 			if (enable_time < 1000000) {
 				if (enable_time == 1)
@@ -199,11 +186,8 @@ static ssize_t gpu_debug_proc_write(struct file *file,
 				MTKGPUPower_model_start_swpm(enable_time);
 		} else
 			MTKGPUPower_model_stop();
-#else
-		swpm_err("gpu_debug node temporary disable\n");
-#endif
 	} else {
-		swpm_err("echo 1/0 > /proc/swpm/gpu_debug\n");
+		swpm_err("echo 1/0 > /proc/swpm/debug\n");
 	}
 	return count;
 }

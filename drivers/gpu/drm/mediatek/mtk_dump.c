@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2019 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,11 +18,14 @@ static const char * const ddp_comp_str[] = {DECLARE_DDP_COMP(DECLARE_STR)};
 
 const char *mtk_dump_comp_str(struct mtk_ddp_comp *comp)
 {
-	if (comp && (comp->id < 0 || comp->id >= DDP_COMPONENT_ID_MAX)) {
-		DDPPR_ERR("%s: Invalid ddp comp id:%d\n", __func__, comp->id);
-		comp->id = 0;
-	}
-	return ddp_comp_str[comp->id];
+	if (comp) {
+		if (comp->id < 0 || comp->id >= DDP_COMPONENT_ID_MAX) {
+			DDPPR_ERR("%s: Invalid ddp comp id:%d\n", __func__, comp->id);
+			comp->id = 0;
+		}
+		return ddp_comp_str[comp->id];
+	} else
+		return "invalid";
 }
 
 const char *mtk_dump_comp_str_id(unsigned int id)
@@ -136,7 +138,6 @@ int mtk_dump_analysis(struct mtk_ddp_comp *comp)
 		break;
 	case DDP_COMPONENT_DSI0:
 	case DDP_COMPONENT_DSI1:
-		printk("zhao:mtk_dsi_analysis\n");
 		mtk_dsi_analysis(comp);
 		break;
 #ifdef CONFIG_MTK_HDMI_SUPPORT

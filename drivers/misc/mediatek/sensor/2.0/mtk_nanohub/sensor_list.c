@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,8 +26,8 @@ enum sensorlist {
 	ps,
 	baro,
 	sar,
+	sar_secondary,
 	ois,
-	rear_als,
 	maxhandle,
 };
 
@@ -49,9 +48,6 @@ int sensorlist_sensor_to_handle(int sensor)
 	case SENSOR_TYPE_LIGHT:
 		handle = als;
 		break;
-	case SENSOR_TYPE_REAR_LIGHT:
-		handle = rear_als;
-		break;
 	case SENSOR_TYPE_PROXIMITY:
 		handle = ps;
 		break;
@@ -61,6 +57,9 @@ int sensorlist_sensor_to_handle(int sensor)
 	case SENSOR_TYPE_SAR:
 		handle = sar;
 		break;
+	case SENSOR_TYPE_SAR_SECONDARY:
+	         handle = sar_secondary;
+	         break;
 	case SENSOR_TYPE_OIS:
 		handle = ois;
 		break;
@@ -85,9 +84,6 @@ int sensorlist_handle_to_sensor(int handle)
 	case als:
 		type = SENSOR_TYPE_LIGHT;
 		break;
-	case rear_als:
-		type = SENSOR_TYPE_REAR_LIGHT;
-		break;
 	case ps:
 		type = SENSOR_TYPE_PROXIMITY;
 		break;
@@ -97,6 +93,9 @@ int sensorlist_handle_to_sensor(int handle)
 	case sar:
 		type = SENSOR_TYPE_SAR;
 		break;
+	case sar_secondary:
+	         type = SENSOR_TYPE_SAR_SECONDARY;
+	         break;
 	case ois:
 		type = SENSOR_TYPE_OIS;
 		break;

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -162,8 +161,6 @@ static void _set_vbus(int is_on)
 #if CONFIG_MTK_GAUGE_VERSION == 30
 		charger_dev_enable_otg(primary_charger, true);
 		charger_dev_set_boost_current_limit(primary_charger, 1500000);
-		/* BSP.Charger - 2020.11.11 - add usb_otg node */
-		DBG(0, "enable_usb_otg true");
 #else
 		set_chr_enable_otg(0x1);
 		set_chr_boost_current_limit(1500);
@@ -178,8 +175,6 @@ static void _set_vbus(int is_on)
 #ifdef CONFIG_MTK_CHARGER
 #if CONFIG_MTK_GAUGE_VERSION == 30
 		charger_dev_enable_otg(primary_charger, false);
-		/* BSP.Charger - 2020.11.11 - add usb_otg node */
-		DBG(0, "enable_usb_otg false");
 #else
 		set_chr_enable_otg(0x0);
 #endif
@@ -596,7 +591,10 @@ static void do_host_work(struct work_struct *data)
 #endif
 		/* setup fifo for host mode */
 		ep_config_from_table_for_host(mtk_musb);
-		__pm_stay_awake(mtk_musb->usb_lock);
+
+		if (!mtk_musb->host_suspend)
+			__pm_stay_awake(mtk_musb->usb_lock);
+
 		mt_usb_set_vbus(mtk_musb, 1);
 
 		/* this make PHY operation workable */

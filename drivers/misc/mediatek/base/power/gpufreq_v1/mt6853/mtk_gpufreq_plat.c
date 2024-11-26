@@ -275,12 +275,6 @@ unsigned int mt_gpufreq_get_shader_present(void)
 	gpufreq_pr_info("@%s: segment_id: %d, shader_present: %d\n",
 					__func__, segment_id, shader_present);
 
-/* Special SW setting */
-#if defined(K6853V1_64_SWRGO)
-	gpufreq_pr_info("@%s: K6853V1_64_SWRGO_* load\n", __func__);
-	shader_present = MT_GPU_SHADER_PRESENT_2;
-#endif
-
 	return shader_present;
 }
 
@@ -661,9 +655,13 @@ void mt_gpufreq_set_timestamp(void)
 {
 	gpufreq_pr_debug("@%s\n", __func__);
 
-	/* write 1 into 0x13fb_f130 bit 0 to enable timestamp register */
-	/* timestamp will be used by clGetEventProfilingInfo*/
-	writel(0x00000001, g_mfg_base + 0x130);
+	/* timestamp will be used by clGetEventProfilingInfo
+	 * 0x13fb_f130
+	 * [0] : write 1 to enable timestamp register
+	 * [1] : 0: timer from internal module
+	 *     : 1: timer from soc
+	 */
+	writel(0x00000003, g_mfg_base + 0x130);
 }
 
 void mt_gpufreq_check_bus_idle(void)
@@ -2941,7 +2939,7 @@ static void __mt_gpufreq_kick_pbm(int enable)
 	unsigned int power;
 	unsigned int cur_freq;
 	unsigned int cur_vgpu;
-	unsigned int found = 0;
+	bool found = 0;
 	int tmp_idx = -1;
 	int i;
 
@@ -3012,15 +3010,6 @@ static void __mt_gpufreq_init_table(void)
 #if defined(TURBO)
 	g_segment_max_opp_idx = 0;
 #endif
-#endif
-
-#if defined(K6853V1_64_SWRGO)
-	gpufreq_pr_info("@%s: K6853V1_64_SWRGO_* load\n", __func__);
-	g_segment_max_opp_idx = 14;
-#endif
-#if defined(K6853V1_64_SWRGO_5GC)
-	gpufreq_pr_info("@%s: K6853V1_64_SWRGO_5GC load\n", __func__);
-	g_segment_max_opp_idx = 0;
 #endif
 
 	g_segment_min_opp_idx = NUM_OF_OPP_IDX - 1;

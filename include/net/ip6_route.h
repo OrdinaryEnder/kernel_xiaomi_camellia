@@ -44,6 +44,12 @@ struct route_info {
 /* Use to control all vzw feature*/
 #define MTK_IPV6_VZW_ALL        0x000C
 
+/* Use to control all ATT feature*/
+#define MTK_IPV6_ATT_ALL        0x0007
+
+/* Use to control all TMO feature*/
+#define MTK_IPV6_TMO_ALL        0x0008
+
 /* Use to control vzw feature except for
  * the fixed rs interval time of 4 seconds
  */
@@ -230,7 +236,7 @@ static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		 int (*output)(struct net *, struct sock *, struct sk_buff *));
 
-static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
+static inline unsigned int ip6_skb_dst_mtu(struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = skb->sk && !dev_recursion_level() ?
 				inet6_sk(skb->sk) : NULL;

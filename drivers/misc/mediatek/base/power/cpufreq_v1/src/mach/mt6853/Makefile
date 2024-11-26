@@ -19,6 +19,11 @@ ccflags-y +=	\
 	-I$(srctree)/drivers/misc/mediatek/freqhopping	\
 	-I$(srctree)/drivers/misc/mediatek/freqhopping/$(CONFIG_MTK_PLATFORM)
 
+ifeq ($(CONFIG_MTK_TINYSYS_MCUPM_SUPPORT), y)
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/mcupm/
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/mcupm/mt6853/
+endif
+
 ifeq ($(findstring _qea,$(PROJECT_DTB_NAMES)),_qea)
 subdir-ccflags-y = -DQEA
 endif
@@ -28,10 +33,6 @@ subdir-ccflags-y = -DK6853TV1
 endif
 
 ifeq ($(findstring _turbo,$(PROJECT_DTB_NAMES)),_turbo)
-subdir-ccflags-y = -DTURBO
-endif
-
-ifeq ($(findstring k6853v1_64_swrgo_5gc,$(PROJECT_DTB_NAMES)),k6853v1_64_swrgo_5gc)
 subdir-ccflags-y = -DTURBO
 endif
 

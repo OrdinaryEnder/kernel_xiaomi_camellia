@@ -662,9 +662,13 @@ void mt_gpufreq_set_timestamp(void)
 {
 	gpufreq_pr_debug("@%s\n", __func__);
 
-	/* write 1 into 0x13fb_f130 bit 0 to enable timestamp register */
-	/* timestamp will be used by clGetEventProfilingInfo*/
-	writel(0x00000001, g_mfg_base + 0x130);
+	/* timestamp will be used by clGetEventProfilingInfo
+	 * 0x13fb_f130
+	 * [0] : write 1 to enable timestamp register
+	 * [1] : 0: timer from internal module
+	 *     : 1: timer from soc
+	 */
+	writel(0x00000003, g_mfg_base + 0x130);
 }
 
 void mt_gpufreq_set_gpm(void)
@@ -1802,6 +1806,9 @@ static unsigned int __mt_gpufreq_get_segment_id(void)
 	case 0x04:
 		segment_id = MT6833M_SEGMENT;    /* 5G-CM */
 		break;
+	case 0x06:
+		segment_id = MT6833T_SEGMENT;    /* 5G-C+ */
+		break;
 	default:
 		segment_id = MT6833_SEGMENT;
 		gpufreq_pr_info("@%s: invalid efuse_id(0x%x)\n",
@@ -1822,6 +1829,8 @@ static struct opp_table_info *__mt_gpufreq_get_segment_table(void)
 	switch (efuse_id) {
 	case 0x2: // EFUSE 0x11C105E8[10:9] = 2'b10
 		return g_opp_table_segment_2;
+	case 0x1: // EFUSE 0x11C105E8[10:9] = 2'b01
+		return g_opp_table_segment_3;
 	default:
 		gpufreq_pr_debug("@%s: invalid efuse_id(0x%x)\n",
 				__func__, efuse_id);
@@ -3017,7 +3026,7 @@ static void __mt_gpufreq_kick_pbm(int enable)
 	unsigned int power;
 	unsigned int cur_freq;
 	unsigned int cur_vgpu;
-	unsigned int found = 0;
+	bool found = 0;
 	int tmp_idx = -1;
 	int i;
 
@@ -3074,10 +3083,12 @@ static void __mt_gpufreq_init_table(void)
 	unsigned int i = 0;
 
 	/* determine max_opp/num/segment_table... by segment  */
-	if (segment_id == MT6833_SEGMENT)
+	if (segment_id == MT6833_SEGMENT)    /* 5G-C */
 		g_segment_max_opp_idx = 11;
-	else if (segment_id == MT6833M_SEGMENT)
+	else if (segment_id == MT6833M_SEGMENT)    /* 5G-CM */
 		g_segment_max_opp_idx = 24;
+	else if (segment_id == MT6833T_SEGMENT)    /* 5G-C+ */
+		g_segment_max_opp_idx = 0;
 	else
 		g_segment_max_opp_idx = 0;
 
@@ -3560,6 +3571,15 @@ static void __mt_gpufreq_dump_bringup_status(void)
 			__mt_gpufreq_get_cur_freq());
 }
 
+/* the lock prove have false alarm when driver probe. skip it*/
+#define MTK_SKIP_LOCK_PROVE 1
+
+#if MTK_SKIP_LOCK_PROVE
+#define RETURN_ERROR(X) do { lockdep_on(); return X; } while (0)
+#else
+#define RETURN_ERROR(X) do { return X; } while (0)
+#endif
+
 /*
  * gpufreq driver probe
  */
@@ -3567,7 +3587,9 @@ static int __mt_gpufreq_pdrv_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
 	int ret;
-
+#if MTK_SKIP_LOCK_PROVE
+	lockdep_off();
+#endif
 	gpufreq_pr_info("@%s: driver init is started\n", __func__);
 
 	node = of_find_matching_node(NULL, g_gpufreq_of_match);
@@ -3577,19 +3599,19 @@ static int __mt_gpufreq_pdrv_probe(struct platform_device *pdev)
 #if MT_GPUFREQ_DFD_ENABLE
 	if (mtk_dbgtop_mfg_pwr_en(1)) {
 		gpufreq_pr_info("[GPU_DFD] wait dbgtop ready\n");
-		return EPROBE_DEFER;
+		RETURN_ERROR(EPROBE_DEFER);
 	}
 #endif
 
 	/* init pmic regulator */
 	ret = __mt_gpufreq_init_pmic(pdev);
 	if (ret)
-		return ret;
+		RETURN_ERROR(ret);
 
 	/* init clock source and mtcmos */
 	ret = __mt_gpufreq_init_clk(pdev);
 	if (ret)
-		return ret;
+		RETURN_ERROR(ret);
 
 	__mt_gpufreq_init_acp();
 
@@ -3623,7 +3645,7 @@ static int __mt_gpufreq_pdrv_probe(struct platform_device *pdev)
 	g_probe_done = true;
 	gpufreq_pr_info("@%s: driver init is finished\n", __func__);
 
-	return 0;
+	RETURN_ERROR(0);
 }
 
 /*

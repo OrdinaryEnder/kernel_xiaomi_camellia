@@ -50,6 +50,9 @@
 #define NVT_SENSITIVITY_SWITCH "nvt_sensitivity_switch"
 /*BSP.TP - Add nvt_pf_switch and nvt_sensitivity_switch- 2020.11.30 - End*/
 
+/*BSP.TP - Add for tp detect - 2021.03.10 - Start*/
+extern int is_ft_lcm;
+/*BSP.TP - Add for tp detect - 2021.03.10 - End*/
 
 #define BUS_TRANSFER_LENGTH  256
 
@@ -653,14 +656,15 @@ int32_t nvt_set_edge_reject_switch(uint8_t edge_reject_switch)
 		goto nvt_set_edge_reject_switch_out;
 	}
 
+/* Huaqin modify for HQ-133113 by shujiawang at 2021/05/10 start */
 	buf[0] = EVENT_MAP_HOST_CMD;
 	if (edge_reject_switch == 1) {
 		// vertical
 		buf[1] = 0xBA;
-	} else if (edge_reject_switch == 2) {
+	} else if (edge_reject_switch == 3) {
 		// left up
 		buf[1] = 0xBB;
-	} else if (edge_reject_switch == 3) {
+	} else if (edge_reject_switch == 2) {
 		// righ up
 		buf[1] = 0xBC;
 	} else {
@@ -668,6 +672,7 @@ int32_t nvt_set_edge_reject_switch(uint8_t edge_reject_switch)
 		ret = -EINVAL;
 		goto nvt_set_edge_reject_switch_out;
 	}
+/* Huaqin modify for HQ-133113 by shujiawang at 2021/05/10 end */
 	ret = CTP_SPI_WRITE(ts->client, buf, 2);
 	if (ret < 0) {
 		NVT_ERR("Write edge reject switch command fail!\n");
@@ -1838,18 +1843,25 @@ Description:
 return:
 	Executive outcomes. 0---succeed.
 *******************************************************/
+
+/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 start */
 static int32_t c_tp_info_show(struct seq_file *m, void *v)
 {
-
-	if (strstr(saved_command_line, "dsi_panel_K19_36_02_0a_vdo")) {
+	if (is_ft_lcm == 0) {
+		seq_printf(m, "[Vendor]Tianma,[TP-IC]:NT36672,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
+	} else if (is_ft_lcm == 1) {
+		seq_printf(m, "[Vendor]Dijing,[TP-IC]:NT36672,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
+	} else if (is_ft_lcm == 3) {
+		seq_printf(m, "[Vendor]Dijing,[TP-IC]:NT36672D,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
+	} else if (is_ft_lcm == 4) {
 		seq_printf(m, "[Vendor]Tianma, [TP-IC]:nt36672C,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
-	} else if (strstr(saved_command_line, "dsi_panel_K19_36_02_0c_vdo")) {
-		seq_printf(m, "[Vendor]Tianma, [TP-IC]:nt36672D,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
-	} else if (strstr(saved_command_line, "dsi_panel_K19_43_02_0b_vdo")) {
+	} else if (is_ft_lcm == 5) {
 		seq_printf(m, "[Vendor]Truly, [TP-IC]:nt36672C,[FW]0x%x,PID=%04X\n", ts->fw_ver, ts->nvt_pid);
-    }
+	}
+
 	return 0;
 }
+/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 end */
 
 const struct seq_operations nvt_tp_info_seq_ops = {
 	.start  = c_start,

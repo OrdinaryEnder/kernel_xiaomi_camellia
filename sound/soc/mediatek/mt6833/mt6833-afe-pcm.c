@@ -40,6 +40,11 @@
 #include "../scp_spk/mtk-scp-spk-common.h"
 #endif
 
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+#include "../scp_ultra/mtk-scp-ultra-common.h"
+#endif
+
+
 /* FORCE_FPGA_ENABLE_IRQ use irq in fpga */
 /* #define FORCE_FPGA_ENABLE_IRQ */
 
@@ -134,7 +139,7 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 	unsigned int counter = runtime->period_size;
 	unsigned int rate = runtime->rate;
 	int fs;
-	int ret;
+	int ret = 0;
 
 	dev_info(afe->dev, "%s(), %s cmd %d, irq_id %d\n",
 		 __func__, memif->data->name, cmd, irq_id);
@@ -142,14 +147,12 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-#if defined(CONFIG_MTK_VOW_BARGE_IN_SUPPORT)
-		if (runtime->stop_threshold == ~(0U))
+		/* set memif enable */
+		if (memif->vow_bargein_enable)
+			/* memif will be set by scp */
 			ret = 0;
 		else
 			ret = mtk_memif_set_enable(afe, id);
-#else
-		ret = mtk_memif_set_enable(afe, id);
-#endif
 
 		/*
 		 * for small latency record
@@ -185,7 +188,9 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 				       irq_data->irq_fs_maskbit
 				       << irq_data->irq_fs_shift,
 				       fs << irq_data->irq_fs_shift);
+
 		/* enable interrupt */
+		/* barge-in set stop_threshold == ~(0U), interrupt is set by scp */
 		if (runtime->stop_threshold != ~(0U))
 			mtk_regmap_update_bits(afe->regmap,
 					       irq_data->irq_en_reg,
@@ -205,7 +210,10 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 				}
 			}
 		}
-#if defined(CONFIG_MTK_VOW_BARGE_IN_SUPPORT)
+
+		/* set memif disable */
+#if defined(CONFIG_MTK_VOW_SUPPORT)
+		/* TODO: check memif->vow_barge_in_enable */
 		if (runtime->stop_threshold == ~(0U))
 			ret = 0;
 		else
@@ -213,12 +221,14 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 #else
 		ret = mtk_memif_set_disable(afe, id);
 #endif
+
 		if (ret) {
 			dev_err(afe->dev, "%s(), error, id %d, memif enable, ret %d\n",
 				__func__, id, ret);
 		}
 
 		/* disable interrupt */
+		/* barge-in set stop_threshold == ~(0U), interrupt is set by scp */
 		if (runtime->stop_threshold != ~(0U))
 			mtk_regmap_update_bits(afe->regmap,
 					       irq_data->irq_en_reg,
@@ -226,12 +236,14 @@ int mt6833_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 					       0 << irq_data->irq_en_shift);
 
 		/* and clear pending IRQ */
-#if defined(CONFIG_MTK_VOW_BARGE_IN_SUPPORT)
+#if defined(CONFIG_MTK_VOW_SUPPORT)
+		/* TODO: check memif->vow_barge_in_enable */
 		if (runtime->stop_threshold != ~(0U))
 #endif
 			regmap_write(afe->regmap, irq_data->irq_clr_reg,
-				     1 << irq_data->irq_clr_shift);
+					 1 << irq_data->irq_clr_shift);
 		return ret;
+
 	default:
 		return -EINVAL;
 	}
@@ -941,7 +953,6 @@ static int mt6833_sram_size_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#if defined(CONFIG_MTK_VOW_BARGE_IN_SUPPORT)
 static int mt6833_vow_barge_in_irq_id_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
@@ -954,7 +965,6 @@ static int mt6833_vow_barge_in_irq_id_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = irq_id;
 	return 0;
 }
-#endif
 
 #if defined(CONFIG_MTK_ION)
 static int mt6833_mmap_dl_scene_get(struct snd_kcontrol *kcontrol,
@@ -1120,10 +1130,8 @@ static const struct snd_kcontrol_new mt6833_pcm_kcontrols[] = {
 		       mt6833_voip_scene_get, mt6833_voip_scene_set),
 	SOC_SINGLE_EXT("sram_size", SND_SOC_NOPM, 0, 0xffffffff, 0,
 		       mt6833_sram_size_get, NULL),
-#if defined(CONFIG_MTK_VOW_BARGE_IN_SUPPORT)
 	SOC_SINGLE_EXT("vow_barge_in_irq_id", SND_SOC_NOPM, 0, 0x3ffff, 0,
 		       mt6833_vow_barge_in_irq_id_get, NULL),
-#endif
 #if defined(CONFIG_MTK_ION)
 	SOC_SINGLE_EXT("mmap_play_scenario", SND_SOC_NOPM, 0, 0x1, 0,
 		       mt6833_mmap_dl_scene_get, mt6833_mmap_dl_scene_set),
@@ -1190,6 +1198,8 @@ static const struct snd_kcontrol_new memif_ul2_ch1_mix[] = {
 				    I_DL5_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("DL6_CH1", AFE_CONN5_1,
 				    I_DL6_CH1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("DL7_CH1", AFE_CONN5_1,
+				    I_DL7_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_1_CAP_CH1", AFE_CONN5,
 				    I_PCM_1_CAP_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_2_CAP_CH1", AFE_CONN5,
@@ -1219,6 +1229,8 @@ static const struct snd_kcontrol_new memif_ul2_ch2_mix[] = {
 				    I_DL5_CH2, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("DL6_CH2", AFE_CONN6_1,
 				    I_DL6_CH1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("DL7_CH2", AFE_CONN6_1,
+				    I_DL7_CH2, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_1_CAP_CH1", AFE_CONN6,
 				    I_PCM_1_CAP_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_2_CAP_CH1", AFE_CONN6,
@@ -1452,6 +1464,8 @@ static const struct snd_soc_dapm_route mt6833_memif_routes[] = {
 	{"UL2_CH2", "DL4_CH2", "Hostless_UL2 UL"},
 	{"UL2_CH1", "DL5_CH1", "Hostless_UL2 UL"},
 	{"UL2_CH2", "DL5_CH2", "Hostless_UL2 UL"},
+	{"UL2_CH1", "DL7_CH1", "Hostless_UL2 UL"},
+	{"UL2_CH2", "DL7_CH2", "Hostless_UL2 UL"},
 
 	{"Hostless_UL2 UL", NULL, "UL2_VIRTUAL_INPUT"},
 
@@ -5588,6 +5602,10 @@ static int mt6833_afe_pcm_dev_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_SND_SOC_MTK_SCP_SMARTPA)
 	audio_set_dsp_afe(afe);
+#endif
+
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+	ultra_set_afe_base(afe);
 #endif
 
 	return 0;

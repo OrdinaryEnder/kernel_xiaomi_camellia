@@ -110,3 +110,5 @@ endif
 ifeq ($(CONFIG_MTK_DITHERING_SUPPORT), y)
 ccflags-y += -DDITHERING_SUPPORT
 endif
+
+subdir-ccflags-y += -I$(srctree)/drivers/staging/android/ion
