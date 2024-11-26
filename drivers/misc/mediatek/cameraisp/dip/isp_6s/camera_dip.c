@@ -5699,7 +5699,7 @@ static signed int DIP_P2_BufQue_CTRL_FUNC(
 		idx2 = DIP_P2_BufQue_GetMatchIdx(param,
 			DIP_P2_BUFQUE_MATCH_TYPE_FRAMEOP,
 			DIP_P2_BUFQUE_LIST_TAG_UNIT);
-		if ((idx2 < 0) || (idx2 >= _MAX_SUPPORT_P2_FRAME_NUM_)) {
+		if (idx2 ==  -1) {
 			spin_unlock(&(SpinLock_P2FrameList));
 			LOG_ERR("Match index 2 fail(%d_0x%x_0x%x_%d, %d_%d)",
 				param.property,
@@ -5722,7 +5722,7 @@ static signed int DIP_P2_BufQue_CTRL_FUNC(
 		idx = DIP_P2_BufQue_GetMatchIdx(param,
 			DIP_P2_BUFQUE_MATCH_TYPE_FRAMEOP,
 			DIP_P2_BUFQUE_LIST_TAG_PACKAGE);
-		if ((idx < 0) || (idx >= _MAX_SUPPORT_P2_PACKAGE_NUM_)) {
+		if (idx ==  -1) {
 			spin_unlock(&(SpinLock_P2FrameList));
 			LOG_ERR("Match index 1 fail(%d_0x%x_0x%x_%d, %d_%d)",
 				param.property,
@@ -8678,10 +8678,7 @@ int32_t DIP_MDPDumpCallback(uint64_t engineFlag, int level)
 		}
 	}
 #endif
-	if (G_u4DipEnClkCnt > 0)
-		DIP_DumpDIPReg();
-	else
-		LOG_DBG("G_u4DipEnClkCnt(%d) <= 0\n", G_u4DipEnClkCnt);
+	DIP_DumpDIPReg();
 
 	return 0;
 }

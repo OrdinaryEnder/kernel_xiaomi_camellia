@@ -1,5 +1,5 @@
 MTK_LPM_GS_DUMP_VERSION = $(strip $(subst ",, $(CONFIG_MTK_LPM_GS_DUMP_VERSION)))
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/base/power/include/power_gs_v1
+
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/lpm/inc/
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/lpm/mtk_lpm_fs/
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/lpm/modules/include/
@@ -11,3 +11,4 @@ obj-$(CONFIG_MTK_LPM_GS_DUMP_SUPPORT) += mtk_lpm_pwr_gs.o
 obj-$(CONFIG_MTK_LPM_GS_DUMP_SUPPORT) += gs/${MTK_LPM_GS_DUMP_VERSION}/mtk_lpm_pwr_gs_common.o
 obj-$(CONFIG_MTK_LPM_GS_DUMP_SUPPORT) += gs/${MTK_LPM_GS_DUMP_VERSION}/mtk_lpm_pwr_gs_dump_clk.o
 obj-$(CONFIG_MTK_LPM_GS_DUMP_SUPPORT) += gs/${MTK_LPM_GS_DUMP_VERSION}/mtk_lpm_pwr_gs_dump_pmic.o
+

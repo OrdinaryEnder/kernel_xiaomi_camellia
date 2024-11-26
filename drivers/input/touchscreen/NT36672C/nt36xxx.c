@@ -134,8 +134,6 @@ const struct mtk_chip_config spi_ctrdata = {
 
 static uint8_t bTouchIsAwake;
 
-bool nvt_gesture_flag;
-
 /*******************************************************
 Description:
 	Novatek touchscreen irq enable/disable function.
@@ -1541,7 +1539,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	}
 
 	/* get pinctrl handler from of node */
-	/*nt36672_pinctrl = devm_pinctrl_get(
+	nt36672_pinctrl = devm_pinctrl_get(
 		ts->client->controller->dev.parent);
 	if (IS_ERR_OR_NULL(nt36672_pinctrl)) {
 		NVT_ERR("Failed to get pinctrl handler[need confirm]");
@@ -1549,7 +1547,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 		goto err_gpio_config_failed;
 	}
 
-	/* default spi mode *
+	/* default spi mode */
 	nt36672_spi_mode_default = pinctrl_lookup_state(
 				nt36672_pinctrl, PINCTRL_STATE_SPI_DEFAULT);
 	if (IS_ERR_OR_NULL(nt36672_spi_mode_default)) {
@@ -1564,7 +1562,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 					nt36672_spi_mode_default);
 	if (ret < 0)
 		NVT_ERR("Failed to select default pinstate, r:%d", ret);
-	*/
+
 	mutex_init(&ts->lock);
 	mutex_init(&ts->xbuf_lock);
 
@@ -1682,21 +1680,18 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 		if (!videolfb_tag)
 			NVT_ERR("Invalid lcm name\n");
 			NVT_LOG("read lcm name : %s\n", videolfb_tag->lcmname);
-		if (strcmp("nt36672c_fhdp_dsi_vdo_auo_cphy_90hz_jdi_lcm_drv",
+		if (strcmp("nt36672c_fhdp_dsi_vdo_90hz_jdi_rt4801_lcm_drv",
 			videolfb_tag->lcmname) == 0 ||
-			strcmp("nt36672c_fhdp_dsi_vdo_auo_cphy_90hz_jdi_hfp_lcm_drv",
+			strcmp("nt36672c_fhdp_dsi_vdo_cphy_90hz_jdi_rt4801_lcm_drv",
+			videolfb_tag->lcmname) == 0 ||
+			strcmp("nt36672c_fhdp_dsi_vdo_cphy_90hz_jdi_rt4801_hfp_lcm_drv",
 			videolfb_tag->lcmname) == 0)
 			strncpy(novatek_firmware, firmware_name_jdi, sizeof(firmware_name_jdi));
-		else if (strcmp("nt36672c_fhdp_dsi_vdo_auo_cphy_90hz_tianma_lcm_drv",
+		else if (strcmp("nt36672c_fhdp_dsi_vdo_cphy_90hz_tianma_rt4801_lcm_drv",
+			videolfb_tag->lcmname) == 0 ||
+			strcmp("nt36672c_fhdp_dsi_vdo_cphy_90hz_tianma_rt4801_hfp_lcm_drv",
 			videolfb_tag->lcmname) == 0)
 			strncpy(novatek_firmware, firmware_name_tm, sizeof(firmware_name_tm));
-		else if (strcmp("nt36672c_fhdp_dsi_vdo_120hz_shenchao_lcm_drv",
-			videolfb_tag->lcmname) == 0 ||
-			strcmp("nt36672c_fhdp_dsi_vdo_90hz_shenchao_lcm_drv",
-			videolfb_tag->lcmname) == 0 ||
-			strcmp("nt36672c_fhdp_dsi_vdo_60hz_shenchao_lcm_drv",
-			videolfb_tag->lcmname) == 0)
-			strncpy(novatek_firmware, firmware_name, sizeof(firmware_name));
 		else
 			strncpy(novatek_firmware, firmware_name, sizeof(firmware_name));
 		NVT_LOG("nt36672c touch fw name : %s", BOOT_UPDATE_FIRMWARE_NAME);
@@ -1846,8 +1841,7 @@ err_chipvertrim_failed:
 	nvt_gpio_deconfig(ts);
 err_gpio_config_failed:
 err_pinctrl_failed:
-	// pinctrl_put(nt36672_pinctrl);
-	// Line above causes an premium ticket to an NULL reference kernel panic!
+	pinctrl_put(nt36672_pinctrl);
 	nt36672_pinctrl = NULL;
 err_spi_setup:
 err_ckeck_full_duplex:
@@ -2224,7 +2218,7 @@ static int32_t __init nvt_driver_init(void)
 {
 	int32_t ret = 0;
 
-	NVT_LOG("start (drivers/input/touchscreen)\n");
+	NVT_LOG("start\n");
 
 	//---add spi driver---
 	ret = spi_register_driver(&nvt_spi_driver);

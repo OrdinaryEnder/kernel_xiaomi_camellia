@@ -309,10 +309,7 @@ struct dpmaif_drb_msg {
 	unsigned int    count_l:16;
 	unsigned int    channel_id:8;
 	unsigned int    network_type:3;
-	unsigned int    r:1;
-	unsigned int    ipv4:1; /* enable ul checksum offload for ipv4 header */
-	unsigned int    l4:1; /* enable ul checksum offload for tcp/udp */
-	unsigned int    rsv:2;
+	unsigned int    reserved2:5;
 };
 
 struct dpmaif_drb_skb {
@@ -325,6 +322,7 @@ struct dpmaif_drb_skb {
 	unsigned short is_msg:1;
 	unsigned short is_frag:1;
 	unsigned short is_last_one:1;
+	unsigned long long time;
 };
 
 struct dpmaif_tx_queue {
@@ -485,7 +483,6 @@ int dpmaif_stop_rx(unsigned char hif_id);
 int dpmaif_stop_tx(unsigned char hif_id);
 int dpmaif_stop(unsigned char hif_id);
 void dpmaif_stop_hw(void);
-extern void ccmni_clr_flush_timer(void);
 #ifdef CONFIG_MTK_GIC_V3_EXT
 extern void mt_irq_dump_status(int irq);
 #endif

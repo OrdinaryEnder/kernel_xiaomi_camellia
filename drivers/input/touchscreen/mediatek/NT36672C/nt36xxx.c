@@ -27,7 +27,7 @@
 #include <linux/of_irq.h>
 /*BSP.Touch - 2020.11.13 - add for hw_info start*/
 #include <linux/string.h>
-//#include <linux/hqsysfs.h>
+#include <linux/hqsysfs.h>
 /*BSP.Touch - 2020.11.13 - add for hw_info end*/
 #if defined(CONFIG_FB)
 #ifdef CONFIG_DRM_MSM
@@ -43,10 +43,6 @@
 #include "../xiaomi/xiaomi_touch.h"
 #endif
 
-/* Huaqin add for HQ-131657 by liunianliang at 2021/06/03 start */
-#include "mtk_boot_common.h"
-/* Huaqin add for HQ-131657 by liunianliang at 2021/06/03 end */
-
 #include "nt36xxx.h"
 #if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
@@ -59,11 +55,6 @@ static unsigned long irq_timer;
 uint8_t esd_check;
 uint8_t esd_retry;
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
-
-/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 start */
-bool tp_charger_status;
-extern int32_t nvt_set_charger_switch(uint8_t charger_switch);
-/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 end */
 
 #if NVT_TOUCH_EXT_PROC
 extern int32_t nvt_extra_proc_init(void);
@@ -106,10 +97,6 @@ char lockdown[17] = {0};
 uint32_t ENG_RST_ADDR  = 0x7FFF80;
 uint32_t SWRST_N8_ADDR; //read from dtsi
 uint32_t SPI_RD_FAST_ADDR;	//read from dtsi
-
-/*BSP.TP - Add for tp detect - 2021.03.10 - Start*/
-int is_ft_lcm;
-/*BSP.TP - Add for tp detect - 2021.03.10 - End*/
 
 #if TOUCH_KEY_NUM > 0
 const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
@@ -170,107 +157,6 @@ const struct mtk_chip_config spi_ctrdata = {
 #endif
 
 uint8_t bTouchIsAwake;
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
-#if NVT_TOUCH_VDD_TP_RECOVERY
-void nvt_bootloader_reset_locked(void)
-{
-	mutex_lock(&ts->lock);
-
-	NVT_LOG("start\n");
-	//---reset cmds to SWRST_N8_ADDR---
-
-	nvt_write_addr(SWRST_N8_ADDR, 0x69);
-	mutex_unlock(&ts->lock);
-	mdelay(5);  //wait tBRST2FR after Bootload RST
-	NVT_LOG("end\n");
-}
-
-EXPORT_SYMBOL(nvt_bootloader_reset_locked);
-
-int32_t nvt_esd_vdd_tp_recovery(void)
-{
-	int32_t ret = 0;
-	uint8_t buf[8] = {0};
-
-	mutex_lock(&ts->lock);
-
-	NVT_LOG("%s: run VDD_TP recovery\n", __func__);
-
-	// 5 SPI cmds
-	nvt_write_addr(0x3F302, 0x1F);
-	nvt_write_addr(0x3F344, 0x02);
-	nvt_write_addr(0x3F50E, 0x0A);
-	nvt_write_addr(0x3F384, 0x00);
-	nvt_write_addr(0x3F380, 0x01);
-	nvt_write_addr(0x3F020, 0xAA);
-	nvt_set_page(0x3F020);
-	buf[0] = 0x20;
-	buf[1] = 0x00;
-	ret = CTP_SPI_READ(ts->client, buf, 2);
-	NVT_ERR("%s: read 0x3F020 before bootloader reset = 0x%02X\n", __func__, buf[1]);
-	nvt_bootloader_reset();
-	nvt_set_page(0x3F020);
-	buf[0] = 0x20;
-	buf[1] = 0x00;
-	ret = CTP_SPI_READ(ts->client, buf, 2);
-	NVT_ERR("%s: read 0x3F020 after bootloader reset = 0x%02X\n", __func__, buf[1]);
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR);
-	mutex_unlock(&ts->lock);
-	return ret;
-
-}
-
-EXPORT_SYMBOL(nvt_esd_vdd_tp_recovery);
-
-#endif /* NVT_TOUCH_VDD_TP_RECOVERY */
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
-
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 start */
-static int32_t nvt_ts_resume(struct device *dev);
-
-#if TP_RESUME_EN
-
-#define TP_RESUME_WAIT_TIME             20
-static struct delayed_work nvt_resume_work;
-static struct workqueue_struct *nvt_resume_workqueue;
-
-static void nvt_resume_func(struct work_struct *work)
-{
-	NVT_LOG("Enter %s", __func__);
-	nvt_ts_resume(&ts->client->dev);
-}
-
-void nvt_resume_queue_work(void)
-{
-	/* Huaqin modify for HQ-139605 by feiwen at 2021/06/09 start */
-	flush_workqueue(nvt_resume_workqueue);
-	/* Huaqin modify for HQ-139605 by feiwen at 2021/06/09 end */
-	queue_delayed_work(nvt_resume_workqueue, &nvt_resume_work, msecs_to_jiffies(TP_RESUME_WAIT_TIME));
-}
-#endif
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 end */
-
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#if TP_SUSPEND_EN
-static int32_t nvt_ts_suspend(struct device *dev);
-
-#define TP_SUSPEND_WAIT_TIME             10
-static struct delayed_work nvt_suspend_work;
-static struct workqueue_struct *nvt_suspend_workqueue;
-
-static void nvt_suspend_func(struct work_struct *work)
-{
-	NVT_LOG("Enter %s", __func__);
-	nvt_ts_suspend(&ts->client->dev);
-}
-
-void nvt_suspend_queue_work(void)
-{
-	flush_workqueue(nvt_suspend_workqueue);
-	queue_delayed_work(nvt_suspend_workqueue, &nvt_suspend_work, msecs_to_jiffies(TP_SUSPEND_WAIT_TIME));
-}
-#endif
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
 
 /*******************************************************
 Description:
@@ -816,30 +702,23 @@ info_retry:
 
 	return ret;
 }
-
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 start */
+/*BSP.Touch - 2020.11.13 - add for hw_info start*/
 void get_tp_info(void)
 {
 	nvt_get_fw_info();
-
-	if (is_ft_lcm == 0) {
-		sprintf(tp_version_info, "[Vendor]Tianma,[TP-IC]:NT36672,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
-	} else if (is_ft_lcm == 1) {
-		sprintf(tp_version_info, "[Vendor]Dijing,[TP-IC]:NT36672,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
-	} else if (is_ft_lcm == 3) {
-		sprintf(tp_version_info, "[Vendor]Dijing,[TP-IC]:NT36672D,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
-	} else if (is_ft_lcm == 4) {
+	if (strstr(saved_command_line, "dsi_panel_K19_36_02_0a_vdo")) {
 		sprintf(tp_version_info, "[Vendor]Tianma,[TP-IC]:NT36672C,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
-	} else if (is_ft_lcm == 5) {
-		sprintf(tp_version_info, "[Vendor]Truly,[TP-IC]:NT36672C,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
+	} else if (strstr(saved_command_line, "dsi_panel_K19_43_02_0b_vdo")) {
+		sprintf(tp_version_info, "[Vendor]TRULY,[TP-IC]:NT36672C,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
+	} else if (strstr(saved_command_line, "dsi_panel_K19_36_02_0c_vdo")) {
+		sprintf(tp_version_info, "[Vendor]Tianma,[TP-IC]:NT36672D,[FW]0x%x,PID=%04X\n", tp_fw_version, ts->nvt_pid);
 	}
-
 	printk("[%s]: tp_version %s\n", __func__, tp_version_info);
 
-	//hq_regiser_hw_info(HWID_CTP, tp_version_info);
+	hq_regiser_hw_info(HWID_CTP, tp_version_info);
 
 }
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 end */
+/*BSP.Touch - 2020.11.13 - add for hw_info end*/
 
 /*******************************************************
   Create Device Node (Proc Entry)
@@ -1288,34 +1167,25 @@ void nvt_esd_check_enable(uint8_t enable)
 	/* enable/disable esd check flag */
 	esd_check = enable;
 }
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
-extern bool g_trigger_disp_esd_recovery;
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
+
 static void nvt_esd_check_func(struct work_struct *work)
 {
 	unsigned int timer = jiffies_to_msecs(jiffies - irq_timer);
 
 	//NVT_LOG("esd_check = %d (retry %d)\n", esd_check, esd_retry);	//DEBUG
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
+
 	if ((timer > NVT_TOUCH_ESD_CHECK_PERIOD) && esd_check) {
-		if (esd_retry < 2) {
-			mutex_lock(&ts->lock);
-			NVT_ERR("do ESD recovery, timer = %d, retry = %d\n", timer, esd_retry);
-			/* do esd recovery, reload fw */
-			nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
-			mutex_unlock(&ts->lock);
-			/* update interrupt timer */
-			irq_timer = jiffies;
-			/* update esd_retry counter */
-			esd_retry++;
-		} else { // esd_retry >= 2
-			NVT_ERR("esd_retry=%d, set g_trigger_disp_esd_recovery true!\n", esd_retry);
-			nvt_esd_check_enable(false);
-			esd_retry = 0;
-			g_trigger_disp_esd_recovery = true;
-		}
+		mutex_lock(&ts->lock);
+		NVT_ERR("do ESD recovery, timer = %d, retry = %d\n", timer, esd_retry);
+		/* do esd recovery, reload fw */
+		nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
+		mutex_unlock(&ts->lock);
+		/* update interrupt timer */
+		irq_timer = jiffies;
+		/* update esd_retry counter */
+		esd_retry++;
 	}
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
+
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 }
@@ -1710,12 +1580,6 @@ extern int32_t nvt_get_er_range_switch(uint8_t *er_range_switch);
 
 static int nvt_set_cur_value(int mode, int value)
 {
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 end */
 	if (mode < Touch_Mode_NUM && mode >= 0) {
 		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
 		if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] > xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE])
@@ -1729,9 +1593,7 @@ static int nvt_set_cur_value(int mode, int value)
 			if (value == 0) {
 				nvt_set_sensitivity_switch(3);
 				nvt_set_pf_switch(0);
-				/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 start */
-				nvt_set_er_range_switch(0);
-				/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 end */
+				nvt_set_er_range_switch(2);
 			} else {
 				nvt_set_sensitivity_switch(xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE]);
 				nvt_set_pf_switch(xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE]);
@@ -1752,9 +1614,7 @@ static int nvt_set_cur_value(int mode, int value)
 			NVT_LOG("don't support\n", __func__);
 	} else
 		NVT_LOG("don't support\n", __func__);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_unlock(&ts->lock);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 end */
+
 	return 0;
 }
 
@@ -1762,14 +1622,7 @@ static int nvt_get_mode_cur_value(int mode)
 {
 	int ret = 0;
 	uint8_t pf_switch = xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
-		
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-	/* Huaqin modify for TP optimutex_unlock protectmization by zhangjiangbin at 2021/07/13 end */
-	
+
 	if (mode < Touch_Mode_NUM && mode >= 0) {
 		printk("%s ,mode = %d\n", __func__, mode);
 		if (mode == 2) {
@@ -1792,9 +1645,6 @@ static int nvt_get_mode_cur_value(int mode)
 		printk("%s, mode %d don't support\n", __func__, mode);
 	}
 	printk("%s mode:%d pf_switch:%d\n", mode, pf_switch);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_unlock(&ts->lock);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 end */
 	return pf_switch;
 }
 
@@ -1819,18 +1669,14 @@ static void nvt_init_touchmode_data(void)
 	/*Touch_Sensitivity mode*/
 	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_MAX_VALUE] = 4;
 	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_MIN_VALUE] = 0;
-	/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 start */
 	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_DEF_VALUE] = 2;
-	/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 end */
 	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][SET_CUR_VALUE] = 0;
 	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_CUR_VALUE] = 0;
 
 	/* PF Mode */
 	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_MAX_VALUE] = 4;
 	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_MIN_VALUE] = 0;
-	/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 start */
 	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_DEF_VALUE] = 2;
-	/* Huaqin modify for HQ-144660 by liunianliang at 2021/07/10 end */
 	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][SET_CUR_VALUE] = 0;
 	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_CUR_VALUE] = 0;
 
@@ -1871,37 +1717,19 @@ static int nvt_get_mode_all(int mode, int *value)
 
 static int nvt_reset_Mode(int mode)
 {
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
 	if (mode < Touch_Mode_NUM && mode >= 0) {
-		if (mode == 0) {
+		if (mode == 0)
 			nvt_set_cur_value(0, 0);
-		} else if (mode == 2) {
-			mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-			nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-			nvt_set_sensitivity_switch(3);
-			mutex_unlock(&ts->lock);
-		} else if (mode == 3) {
-			mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-			nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-			nvt_set_pf_switch(0);
-			mutex_unlock(&ts->lock);
-		} else if (mode == 7) {
-			mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-			nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-			nvt_set_er_range_switch(2);
-			mutex_unlock(&ts->lock);
-		} else {
-			NVT_LOG("%s,unknown value", __func__);
-		}
+			else if (mode == 2)
+				nvt_set_sensitivity_switch(3);
+			else if (mode == 3)
+				nvt_set_pf_switch(0);
+			else if (mode == 7)
+				nvt_set_er_range_switch(2);
+			else
+				NVT_LOG("%s,unknown value", __func__);
 	} else
 	NVT_LOG("%s,don't support", __func__);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
 	return 0;
 }
 /*BSP.Touch - 2020.12.31 - add game mode - start*/
@@ -1937,20 +1765,12 @@ int nvt_palm_sensor_write(int value)
 		ts->palm_sensor_changed = false;
 		return 0;
 	}
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_lock(&ts->lock);
-#if NVT_TOUCH_ESD_PROTECT
-	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 end */
 	ret = nvt_palm_sensor_cmd(value);
 	if (!ret) {
 		NVT_LOG("%s %d succeed\n", __func__, value);
 		ts->palm_sensor_changed = true;
 	}
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 start */
-	mutex_unlock(&ts->lock);
-	/* Huaqin modify for TP mutex_unlock protect by zhangjiangbin at 2021/07/13 end */
+
 	return ret;
 }
 #endif
@@ -2033,42 +1853,31 @@ int nvt_remove_sysfs(struct spi_device *client)
 }
 /*BSP.TP add nvt_irq - 2020.11.11 - End*/
 
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 start */
+/*BSP.TP add tp.compare - 2020.11.16 - Start*/
 int tp_compare_ic(void)
 {
 	NVT_LOG("tp_compare_ic in!!");
-	if (is_ft_lcm == 0) {
-		BOOT_UPDATE_FIRMWARE_NAME = "nvt_tm_fw.bin";
-		MP_UPDATE_FIRMWARE_NAME = "nvt_tm_mp.bin";
-		NVT_LOG("match nt36672A_fhdp_dsi_vdo_tianma_j19_lcm_drv");
-		return 0;
-	} else if (is_ft_lcm == 1) {
-		BOOT_UPDATE_FIRMWARE_NAME = "nvt_dj_fw.bin";
-		MP_UPDATE_FIRMWARE_NAME = "nvt_dj_mp.bin";
-		NVT_LOG("match nt36672A_fhdp_dsi_vdo_dijing_j19_lcm_drv");
-		return 0;
-	} else if (is_ft_lcm == 3) {
-		BOOT_UPDATE_FIRMWARE_NAME = "nvt_dj_72d_fw.bin";
-		MP_UPDATE_FIRMWARE_NAME = "nvt_dj_72d_mp.bin";
-		NVT_LOG("match nt36672D_fhdp_dsi_vdo_dijing_j19_lcm_drv");
-		return 0;
-	} else if (is_ft_lcm == 4) {
+	if (strstr(saved_command_line, "dsi_panel_K19_36_02_0a_vdo")) {
 		BOOT_UPDATE_FIRMWARE_NAME = "nt36672c_tm_01_ts_fw.bin";
 		MP_UPDATE_FIRMWARE_NAME = "nt36672c_tm_01_ts_mp.bin";
-		NVT_LOG("match dsi_panel_k19a_36_02_0a_dsc_vdo_lcm_drv");
+		NVT_LOG("match TP_01");
 		return 0;
-	} else if (is_ft_lcm == 5) {
+	} else if (strstr(saved_command_line, "dsi_panel_K19_36_02_0c_vdo")) {
+		BOOT_UPDATE_FIRMWARE_NAME = "nt36672d_tm_03_ts_fw.bin";
+		MP_UPDATE_FIRMWARE_NAME = "nt36672d_tm_03_ts_mp.bin";
+		NVT_LOG("match TP_03");
+		return 0;
+	} else if (strstr(saved_command_line, "dsi_panel_K19_43_02_0b_vdo")) {
 		BOOT_UPDATE_FIRMWARE_NAME = "nt36672c_tr_02_ts_fw.bin";
 		MP_UPDATE_FIRMWARE_NAME = "nt36672c_tr_02_ts_mp.bin";
-		NVT_LOG("match dsi_panel_k19a_43_02_0b_dsc_vdo_lcm_drv");
+		NVT_LOG("match TP_02");
 		return 0;
 	} else {
 		NVT_ERR("failed to compare firmware\n");
 		return -1;
 	}
 }
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 end */
-
+/*BSP.TP add tp.compare - 2020.11.16 - End*/
 /*******************************************************
 Description:
 	Novatek touchscreen driver probe function.
@@ -2105,17 +1914,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 		ret = -ENOMEM;
 		goto err_malloc_rbuf;
 	}
-
-/* Huaqin add for HQ-131657 by liunianliang at 2021/06/03 start */
-#ifdef CONFIG_MTK_KERNEL_POWER_OFF_CHARGING
-	if (get_boot_mode() == KERNEL_POWER_OFF_CHARGING_BOOT
-		||get_boot_mode() == LOW_POWER_OFF_CHARGING_BOOT) {
-		NVT_ERR("power off charging mode, skip load tp driver!\n");
-		return -EXDEV;
-	}
-#endif
-/* Huaqin add for HQ-131657 by liunianliang at 2021/06/03 end */
-
 	#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 	memset(&xiaomi_touch_interfaces, 0x00, sizeof(struct xiaomi_touch_interface));
 	xiaomi_touch_interfaces.palm_sensor_write = nvt_palm_sensor_write;
@@ -2320,30 +2118,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 start */
-#if TP_RESUME_EN
-	INIT_DELAYED_WORK(&nvt_resume_work, nvt_resume_func);
-	nvt_resume_workqueue = create_workqueue("nvt_resume_wq");
-	if (nvt_resume_workqueue == NULL) {
-		NVT_ERR("Failed to create nvt_resume_workqueue!!!");
-		ret = -ENOMEM;
-		goto err_nvt_resume_init_wq_failed;
-	}
-#endif
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 end */
-
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#if TP_SUSPEND_EN
-	INIT_DELAYED_WORK(&nvt_suspend_work, nvt_suspend_func);
-	nvt_suspend_workqueue = create_workqueue("nvt_suspend_wq");
-	if (nvt_suspend_workqueue == NULL) {
-		NVT_ERR("Failed to create nvt_suspend_workqueue!!!");
-		ret = -ENOMEM;
-		goto err_nvt_suspend_init_wq_failed;
-	}
-#endif
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
-
 	//---set device node---
 #if NVT_TOUCH_PROC
 	ret = nvt_flash_proc_init();
@@ -2460,26 +2234,6 @@ err_lockdown_proc_init_failed:
 nvt_tp_selftest_proc_deinit();
 err_tp_selftest_proc_init_failed:
 #endif
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 start */
-#if TP_RESUME_EN
-if (nvt_resume_workqueue) {
-		cancel_delayed_work_sync(&nvt_resume_work);
-		destroy_workqueue(nvt_resume_workqueue);
-		nvt_resume_workqueue = NULL;
-	}
-err_nvt_resume_init_wq_failed:
-#endif
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 end */
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#if TP_SUSPEND_EN
-	if (nvt_suspend_workqueue) {
-		cancel_delayed_work_sync(&nvt_suspend_work);
-		destroy_workqueue(nvt_suspend_workqueue);
-		nvt_suspend_workqueue = NULL;
-	}
-err_nvt_suspend_init_wq_failed:
-#endif
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
 /*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - end*/
 #if NVT_TOUCH_ESD_PROTECT
 	if (nvt_esd_check_wq) {
@@ -2611,12 +2365,7 @@ static int32_t nvt_ts_remove(struct spi_device *client)
 	}
 
 	spi_set_drvdata(client, NULL);
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 start */
-	if (ts->xbuf) {
-		kfree(ts->xbuf);
-		ts->xbuf = NULL;
-	}
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 end */
+
 	if (ts) {
 		kfree(ts);
 		ts = NULL;
@@ -2707,90 +2456,6 @@ static int32_t nvt_ts_suspend(struct device *dev)
 		ts->palm_sensor_switch = false;
 		}
 	#endif
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
-#if WAKEUP_GESTURE
-	if (nvt_gesture_flag == false)
-		nvt_irq_enable(false);
-#else
-	nvt_irq_enable(false);
-#endif
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
-#if NVT_TOUCH_ESD_PROTECT
-	NVT_LOG("cancel delayed work sync\n");
-	cancel_delayed_work_sync(&nvt_esd_check_work);
-	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-
-	mutex_lock(&ts->lock);
-
-	NVT_LOG("start\n");
-
-	bTouchIsAwake = 0;
-
-#if WAKEUP_GESTURE
-	//---write command to enter "wakeup gesture mode"---
-	if (nvt_gesture_flag == true) {
-		buf[0] = EVENT_MAP_HOST_CMD;
-		buf[1] = 0x13;
-		CTP_SPI_WRITE(ts->client, buf, 2);
-		enable_irq_wake(ts->client->irq);
-		NVT_LOG("Enabled touch wakeup gesture\n");
-	} else {
-		buf[0] = EVENT_MAP_HOST_CMD;
-		buf[1] = 0x11;
-		CTP_SPI_WRITE(ts->client, buf, 2);
-	}
-
-#else // WAKEUP_GESTURE
-	//---write command to enter "deep sleep mode"---
-	buf[0] = EVENT_MAP_HOST_CMD;
-	buf[1] = 0x11;
-	CTP_SPI_WRITE(ts->client, buf, 2);
-#endif // WAKEUP_GESTURE
-
-	mutex_unlock(&ts->lock);
-
-	/* release all touches */
-#if MT_PROTOCOL_B
-	for (i = 0; i < ts->max_touch_num; i++) {
-		input_mt_slot(ts->input_dev, i);
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, 0);
-	}
-#endif
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-#if !MT_PROTOCOL_B
-	input_mt_sync(ts->input_dev);
-#endif
-	input_sync(ts->input_dev);
-
-	msleep(50);
-
-	NVT_LOG("end\n");
-
-	return 0;
-}
-
-int32_t nvt_ts_tp_suspend(void)
-{
-	uint8_t buf[4] = {0};
-#if MT_PROTOCOL_B
-	uint32_t i = 0;
-#endif
-
-	if (!bTouchIsAwake) {
-		NVT_LOG("Touch is already suspend\n");
-		return 0;
-	}
-	#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
-	if (ts->palm_sensor_switch) {
-		NVT_LOG("%s: palm sensor on status, switch to off\n", __func__);
-		update_palm_sensor_value(0);
-		//nvt_palm_sensor_cmd(0);
-		ts->palm_sensor_switch = false;
-		}
-	#endif
 #if WAKEUP_GESTURE
 	if (nvt_gesture_flag == false)
 		nvt_irq_enable(false);
@@ -2854,8 +2519,6 @@ int32_t nvt_ts_tp_suspend(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(nvt_ts_tp_suspend);
-
 
 /*******************************************************
 Description:
@@ -2868,7 +2531,6 @@ static int32_t nvt_ts_resume(struct device *dev)
 {
 	if (bTouchIsAwake) {
 		NVT_LOG("Touch is already resume\n");
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
 #if NVT_TOUCH_WDT_RECOVERY
 		mutex_lock(&ts->lock);
 		nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
@@ -2876,7 +2538,7 @@ static int32_t nvt_ts_resume(struct device *dev)
 #endif /* #if NVT_TOUCH_WDT_RECOVERY */
 		return 0;
 	}
-/* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */
+
 	mutex_lock(&ts->lock);
 
 	NVT_LOG("start\n");
@@ -2890,15 +2552,9 @@ static int32_t nvt_ts_resume(struct device *dev)
 	} else {
 		nvt_check_fw_reset_state(RESET_STATE_REK);
 	}
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 start */
-#if WAKEUP_GESTURE
-	if (nvt_gesture_flag == false)
-		nvt_irq_enable(true);
-#else
+
 	nvt_irq_enable(true);
-#endif
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 end */
-	
+
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
@@ -2906,16 +2562,6 @@ static int32_t nvt_ts_resume(struct device *dev)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	bTouchIsAwake = 1;
-
-	/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 start */
-	if (tp_charger_status == true) {
-		nvt_set_charger_switch(1);
-		NVT_ERR("charger_switch = 1\n");
-	} else {
-		nvt_set_charger_switch(0);
-		NVT_ERR("charger_switch = 0\n");
-	}
-	/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 end */
 
 	mutex_unlock(&ts->lock);
 	#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
@@ -2935,11 +2581,6 @@ int32_t nvt_ts_tp_resume(void)
 {
 	if (bTouchIsAwake) {
 		NVT_LOG("Touch is already resume\n");
-#if NVT_TOUCH_WDT_RECOVERY
-		mutex_lock(&ts->lock);
-		nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
-		mutex_unlock(&ts->lock);
-#endif /* #if NVT_TOUCH_WDT_RECOVERY */
 		return 0;
 	}
 
@@ -2957,14 +2598,9 @@ int32_t nvt_ts_tp_resume(void)
 	} else {
 		nvt_check_fw_reset_state(RESET_STATE_REK);
 	}
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 start */
-#if WAKEUP_GESTURE
-	if (nvt_gesture_flag == false)
-		nvt_irq_enable(true);
-#else
+
 	nvt_irq_enable(true);
-#endif
-	/* Huaqin modify for TP GESTURE by zhangjiangbin at 2021/07/13 end */
+
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
@@ -2972,16 +2608,6 @@ int32_t nvt_ts_tp_resume(void)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	bTouchIsAwake = 1;
-
-	/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 start */
-	if (tp_charger_status == true) {
-		nvt_set_charger_switch(1);
-		NVT_ERR("charger_switch = 1\n");
-	} else {
-		nvt_set_charger_switch(0);
-		NVT_ERR("charger_switch = 0\n");
-	}
-	/* Huaqin modify for HQ-131628 by shujiawang at 2021/05/10 end */
 
 	mutex_unlock(&ts->lock);
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
@@ -3032,44 +2658,20 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 {
 	struct fb_event *evdata = data;
 	int *blank;
-	#ifndef TP_SUSPEND_EN
 	struct nvt_ts_data *ts =
 		container_of(self, struct nvt_ts_data, fb_notif);
-	#endif
 
 	if (evdata && evdata->data && event == FB_EARLY_EVENT_BLANK) {
 		blank = evdata->data;
 		if (*blank == FB_BLANK_POWERDOWN) {
 			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
-/* Huaqin modify for HQ-139605 by feiwen at 2021/06/09 start */
-#if TP_RESUME_EN
-			flush_workqueue(nvt_resume_workqueue);
-#endif
-/* Huaqin modify for HQ-139605 by feiwen at 2021/06/09 end */
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#if TP_SUSPEND_EN
-			nvt_suspend_queue_work();
-#else
 			nvt_ts_suspend(&ts->client->dev);
-#endif
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
 		}
 	} else if (evdata && evdata->data && event == FB_EVENT_BLANK) {
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK) {
 			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 start */
-#if TP_SUSPEND_EN
-			flush_workqueue(nvt_suspend_workqueue);
-#endif
-/* Huaqin modify for HQ-131657 by liunianliang at 2021/06/16 end */
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 start */
-#ifdef TP_RESUME_EN
-			nvt_resume_queue_work();
-#else
 			nvt_ts_resume(&ts->client->dev);
-#endif
-/* Huaqin modify for HQ-131657 by feiwen at 2021/06/03 end */
 		}
 	}
 
@@ -3128,34 +2730,6 @@ static struct spi_driver nvt_spi_driver = {
 	},
 };
 
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 start */
-int __init is_lcm_detect(char *str)
-{
-	if (!(strcmp(str, "nt36672A_fhdp_dsi_vdo_tianma_j19_lcm_drv"))) {
-		is_ft_lcm = 0;
-		NVT_LOG("Func:%s is_ft 0:%d", __func__, is_ft_lcm);
-	}else if (!(strcmp(str, "nt36672A_fhdp_dsi_vdo_dijing_j19_lcm_drv"))) {
-		is_ft_lcm = 1;
-		NVT_LOG("Func:%s is_ft 1:%d", __func__, is_ft_lcm);
-	}else if (!(strcmp(str, "ft8719_fhdp_dsi_vdo_huaxing_j19_lcm_drv"))) {
-		is_ft_lcm = 2;
-		NVT_LOG("Func:%s is_ft 2:%d", __func__, is_ft_lcm);
-	}else if (!(strcmp(str, "nt36672D_fhdp_dsi_vdo_dijing_j19_lcm_drv"))) {
-		is_ft_lcm = 3;
-		NVT_LOG("Func:%s is_ft 3:%d", __func__, is_ft_lcm);
-	}else if (!(strcmp(str, "dsi_panel_k19a_36_02_0a_dsc_vdo_lcm_drv"))) {
-		is_ft_lcm = 4;
-		NVT_LOG("Func:%s is_ft 4:%d", __func__, is_ft_lcm);
-	}else if (!(strcmp(str, "dsi_panel_k19a_43_02_0b_dsc_vdo_lcm_drv"))) {
-		is_ft_lcm = 5;
-		NVT_LOG("Func:%s is_ft 5:%d", __func__, is_ft_lcm);
-	}
-	printk("Func:%s is_lcm_detect:%s", __func__, str);
-	return 0;
-}
- __setup("LCM_name=", is_lcm_detect);
-/* Huaqin modify for HQ-123470 by shujiawang at 2021/03/29 end */
-
 /*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - start*/
 int __init is_lockdown_info_detect(char *str)
 {
@@ -3176,12 +2750,7 @@ static int32_t __init nvt_driver_init(void)
 {
 	int32_t ret = 0;
 
-	NVT_LOG("start (mediatek)\n");
-
-	if (2 == is_ft_lcm){
-		printk("%s result  is_ft:%d", __func__, is_ft_lcm);
-		return -1;
-	}
+	NVT_LOG("start\n");
 
 	//---add spi driver---
 	ret = spi_register_driver(&nvt_spi_driver);
@@ -3201,7 +2770,7 @@ Description:
 	Driver uninstall function.
 
 return:
-    n.a.
+	n.a.
 ********************************************************/
 static void __exit nvt_driver_exit(void)
 {

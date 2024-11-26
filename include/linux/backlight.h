@@ -3,6 +3,7 @@
  * Backlight Lowlevel Control Abstraction
  *
  * Copyright (C) 2003,2004 Hewlett-Packard Company
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  */
 
@@ -53,8 +54,6 @@ enum backlight_hbm_mode {
 	HBM_MODE_LEVEL2,	//CURRENT = HBM_MODE_DEFAULT*125%
 	HBM_MODE_LEVEL_MAX
 };
-
-
 
 struct backlight_device;
 struct fb_info;

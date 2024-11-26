@@ -198,12 +198,16 @@ int reviser_table_free_ctxID(void *drvinfo, unsigned long ctxID)
 
 	mutex_lock(&reviser_device->mutex_ctxid);
 
+	if (ctxID < TABLE_CTXID_MAX) {
 
-	bitmap_clear(table_ctxID, ctxID, 1);
-	g_ctxid_empty = false;
-	//LOG_DEBUG("Clear table for ctxID %lu\n", ctxID);
-	wake_up_interruptible(&reviser_device->wait_ctxid);
-
+		bitmap_clear(table_ctxID, ctxID, 1);
+		g_ctxid_empty = false;
+		//LOG_DEBUG("Clear table for ctxID %lu\n", ctxID);
+		wake_up_interruptible(&reviser_device->wait_ctxid);
+	} else {
+		LOG_ERR("Out of range %lu\n", ctxID);
+		goto free_mutex;
+	}
 	LOG_DEBUG("[in] ctxID(%lu) [out] table_ctxID(%08lx)\n"
 			, ctxID, table_ctxID[0]);
 
@@ -211,6 +215,9 @@ int reviser_table_free_ctxID(void *drvinfo, unsigned long ctxID)
 
 	return 0;
 
+free_mutex:
+	mutex_unlock(&reviser_device->mutex_ctxid);
+	return -1;
 }
 void reviser_table_print_ctxID(void *drvinfo, void *s_file)
 {

@@ -788,9 +788,8 @@ static ssize_t mt6833_logger_debugfs_read(char *ToUserBuf,
 	}
 #ifdef CONFIG_MTK_LPM_GS_DUMP_SUPPORT
 	else if (priv == ((void *)&mt6833_log_gs_info)) {
-		len = scnprintf(p, sz, "golden_type: %u\n",
+		len = scnprintf(p, sz, "golden_type:u\n",
 				mt6833_log_gs_info.dump_type);
-		p += len;
 	}
 #endif
 	return (p - ToUserBuf);
@@ -816,7 +815,7 @@ static ssize_t mt6833_logger_debugfs_write(char *FromUserBuf,
 		unsigned int param;
 
 		memset(cmd, 0, sizeof(cmd));
-		if (sscanf(FromUserBuf, "%20s %u", cmd, &param) == 2) {
+		if (sscanf(FromUserBuf, "%127s %u", cmd, &param) == 2) {
 			if (!strcmp(cmd, "golden_dump")) {
 				if (param)
 					mt6833_log_gs_info.limit_set += 1;
@@ -890,10 +889,8 @@ int __init mt6833_logger_init(void)
 	mtk_lpm_sysfs_root_entry_create();
 	mt6833_logger_timer_debugfs_init();
 
-	preempt_disable();
 	dev = cpuidle_get_device();
 	drv = cpuidle_get_cpu_driver(dev);
-	preempt_enable();
 	mt6833_logger_fired.state_index = -1;
 
 	if (drv) {

@@ -261,8 +261,6 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 		s += spitch;
 	}
 }	
-
-extern char fb_hazItStarted;
 	
 void cfb_imageblit(struct fb_info *p, const struct fb_image *image)
 {
@@ -271,7 +269,6 @@ void cfb_imageblit(struct fb_info *p, const struct fb_image *image)
 	u32 width = image->width;
 	u32 dx = image->dx, dy = image->dy;
 	u8 __iomem *dst1;
-	if(!fb_hazItStarted) return;
 
 	if (p->state != FBINFO_STATE_RUNNING)
 		return;

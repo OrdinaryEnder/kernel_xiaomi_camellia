@@ -135,10 +135,8 @@ static int __control_devkmsg(char *str)
 
 static int __init control_devkmsg(char *str)
 {
-	if (__control_devkmsg(str) < 0) {
-		pr_warn("printk.devkmsg: bad option string '%s'\n", str);
+	if (__control_devkmsg(str) < 0)
 		return 1;
-	}
 
 	/*
 	 * Set sysctl string accordingly:
@@ -160,7 +158,7 @@ static int __init control_devkmsg(char *str)
 	 */
 	devkmsg_log |= DEVKMSG_LOG_MASK_LOCK;
 
-	return 1;
+	return 0;
 }
 __setup("printk.devkmsg=", control_devkmsg);
 
@@ -2080,9 +2078,6 @@ static size_t log_output(int facility, int level, enum log_flags lflags, const c
 #endif
 }
 
-extern void ram_console_write(struct console *console, const char *s,
-                                unsigned int count);
-
 /* Must be called under logbuf_lock. */
 int vprintk_store(int facility, int level,
 		  const char *dict, size_t dictlen,
@@ -2146,7 +2141,6 @@ int vprintk_store(int facility, int level,
 	else
 		this_cpu_write(printk_state, ' ');
 #endif
-	//ram_console_write(NULL,text,text_len);
 
 	return log_output(facility, level, lflags,
 			  dict, dictlen, text, text_len);
@@ -2177,7 +2171,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	logbuf_unlock_irqrestore(flags);
 
 	/* If called from the scheduler, we can not call up(). */
-	if (!in_sched && cpu_online(raw_smp_processor_id())) {
+	if (!in_sched) {
 		/*
 		 * Try to acquire and then immediately release the console
 		 * semaphore.  The release will print out buffers and wake up
@@ -2418,16 +2412,6 @@ static int __init console_setup(char *str)
 	char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for "ttyS" */
 	char *s, *options, *brl_options = NULL;
 	int idx;
-
-	/*
-	 * console="" or console=null have been suggested as a way to
-	 * disable console output. Use ttynull that has been created
-	 * for exacly this purpose.
-	 */
-	if (str[0] == 0 || strcmp(str, "null") == 0) {
-		__add_preferred_console("ttynull", 0, NULL, NULL);
-		return 1;
-	}
 
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;

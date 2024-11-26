@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -161,10 +162,6 @@ void exec_low_battery_callback(unsigned int thd)
 			low_battery_level = LOW_BATTERY_LEVEL_1;
 		else if (thd == POWER_INT2_VOLT)
 			low_battery_level = LOW_BATTERY_LEVEL_2;
-#ifdef LOW_BATTERY_PT_SETTING_V2
-		else if (thd == POWER_INT3_VOLT)
-			low_battery_level = LOW_BATTERY_LEVEL_3;
-#endif
 		g_low_battery_level = low_battery_level;
 		for (i = 0; i < ARRAY_SIZE(lbcb_tb); i++) {
 			if (lbcb_tb[i].lbcb != NULL)
@@ -209,13 +206,7 @@ void exec_low_battery_callback_ext(unsigned int thd)
 void low_battery_protect_init(void)
 {
 	int ret = 0;
-#ifdef LOW_BATTERY_PT_SETTING_V2
-	unsigned int volt_arr[4] = {3300, 3100, 2900, 2700};
 
-	ret = lbat_user_register_ext(&lbat_pt, "power throttling",
-				     volt_arr, ARRAY_SIZE(volt_arr),
-				     exec_low_battery_callback);
-#else
 	ret = lbat_user_register(&lbat_pt, "power throttling"
 			, POWER_INT0_VOLT, POWER_INT1_VOLT
 			, POWER_INT2_VOLT, exec_low_battery_callback);
@@ -223,7 +214,6 @@ void low_battery_protect_init(void)
 	ret = lbat_user_register(&lbat_pt_ext, "power throttling ext"
 		, POWER_INT0_VOLT_EXT, POWER_INT1_VOLT_EXT
 		, POWER_INT2_VOLT_EXT, exec_low_battery_callback_ext);
-#endif
 
 #if PMIC_THROTTLING_DLPT_UT
 	ret = lbat_user_register(&lbat_test1, "test1",
@@ -538,7 +528,10 @@ int g_battery_percent_stop;
 int g_battery_percent_level_ext;
 #endif
 
-#define BAT_PERCENT_LINIT 15
+//#ifdef __XIAOMI_CAMERA__
+#define BAT_PERCENT_LINIT 1
+//#define BAT_PERCENT_LINIT 15
+//#endif
 #ifdef BATTERY_PERCENT_NOTIFY_EXT
 #define BAT_PERCENT_LINIT_EXT_LOW 20
 #define BAT_PERCENT_LINIT_EXT_HIGH 25
@@ -630,7 +623,7 @@ void register_battery_percent_notify_ext(
 {
 	PMICLOG("[%s] start\n", __func__);
 
-	bpcb_tb_ext[(unsigned int)prio_val].bpcb = battery_percent_callback;
+	bpcb_tb_ext[prio_val].bpcb = battery_percent_callback;
 
 	pr_info("[%s] prio_val=%d\n", __func__, prio_val);
 
@@ -2008,7 +2001,7 @@ int pmic_throttling_dlpt_init(struct platform_device *pdev)
 {
 #if (CONFIG_MTK_GAUGE_VERSION == 30)
 	struct device_node *np;
-	u32 val = 0;
+	u32 val;
 	char *path;
 
 	path = "/battery";

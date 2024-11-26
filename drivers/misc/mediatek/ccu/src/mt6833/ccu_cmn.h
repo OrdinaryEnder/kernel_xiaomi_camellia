@@ -39,7 +39,6 @@ struct ccu_device_s {
 	void __iomem *pmem_base;
 	void __iomem *ddrmem_base;
 	unsigned int irq_num;
-	struct mutex dev_mutex;
 	struct mutex user_mutex;
 	struct mutex clk_mutex;
 	struct mutex ion_client_mutex;
@@ -181,7 +180,7 @@ int ccu_read_info_reg(int regNo);
 
 void ccu_write_info_reg(int regNo, int val);
 
-int ccu_read_struct_size(uint32_t *structSizes, uint32_t structCnt);
+void ccu_read_struct_size(uint32_t *structSizes, uint32_t structCnt);
 
 void ccu_print_reg(uint32_t *Reg);
 

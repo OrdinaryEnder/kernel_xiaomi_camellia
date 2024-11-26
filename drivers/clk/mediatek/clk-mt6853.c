@@ -24,6 +24,7 @@
 #include "clk-mtk.h"
 #include "clk-mux.h"
 #include "clk-gate.h"
+#include "clkdbg-mt6853.h"
 
 #include <dt-bindings/clock/mt6853-clk.h>
 
@@ -1590,7 +1591,7 @@ static const struct mtk_mux top_muxes[] = {
 	MUX_CLR_SET_UPD(CLK_TOP_ATB_SEL/* dts */, "atb_sel",
 		atb_parents/* parent */, CLK_CFG_8, CLK_CFG_8_SET,
 		CLK_CFG_8_CLR/* set parent */, 16/* lsb */, 2/* width */,
-		INV_BIT/* pdn */, CLK_CFG_UPDATE1/* upd ofs */,
+		23/* pdn */, CLK_CFG_UPDATE1/* upd ofs */,
 		TOP_MUX_ATB_SHIFT/* upd shift */),
 	MUX_CLR_SET_UPD(CLK_TOP_SSPM_SEL/* dts */, "sspm_sel",
 		sspm_parents/* parent */, CLK_CFG_8, CLK_CFG_8_SET,

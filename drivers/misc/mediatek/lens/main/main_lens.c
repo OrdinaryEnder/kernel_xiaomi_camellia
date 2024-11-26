@@ -91,8 +91,6 @@ static struct stAF_OisPosInfo OisPosInfo;
 static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	{1, AFDRV_DW9718TAF, DW9718TAF_SetI2Cclient, DW9718TAF_Ioctl,
 	 DW9718TAF_Release, DW9718TAF_GetFileName, NULL},
-	{1, AFDRV_GT9772AF, GT9772AF_SetI2Cclient, GT9772AF_Ioctl,
-	 GT9772AF_Release, GT9772AF_GetFileName, NULL},
 	{1, AFDRV_AK7371AF, AK7371AF_SetI2Cclient, AK7371AF_Ioctl,
 	 AK7371AF_Release, AK7371AF_GetFileName, NULL},
 	{1, AFDRV_BU6424AF, BU6424AF_SetI2Cclient, BU6424AF_Ioctl,
@@ -134,8 +132,6 @@ static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	 DW9718AF_Release, DW9718AF_GetFileName, NULL},
 	{1, AFDRV_GT9764AF, GT9764AF_SetI2Cclient, GT9764AF_Ioctl,
 	GT9764AF_Release, GT9764AF_GetFileName, NULL},
-	{1, AFDRV_GT9768AF, GT9768AF_SetI2Cclient, GT9768AF_Ioctl,
-	GT9768AF_Release, GT9768AF_GetFileName, NULL},
 	{1, AFDRV_LC898212AF, LC898212AF_SetI2Cclient, LC898212AF_Ioctl,
 	 LC898212AF_Release, LC898212AF_GetFileName, NULL},
 	{1, AFDRV_LC898214AF, LC898214AF_SetI2Cclient, LC898214AF_Ioctl,
@@ -150,8 +146,6 @@ static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	 LC898217AFC_Release, LC898217AFC_GetFileName, NULL},
 	{1, AFDRV_LC898229AF, LC898229AF_SetI2Cclient, LC898229AF_Ioctl,
 	 LC898229AF_Release, LC898229AF_GetFileName, NULL},
-	 {1, AFDRV_OV5645AF, OV5645AF_SetI2Cclient,
-	OV5645AF_Ioctl, OV5645AF_Release, NULL},
 	{1, AFDRV_LC898122AF, LC898122AF_SetI2Cclient, LC898122AF_Ioctl,
 	 LC898122AF_Release, LC898122AF_GetFileName, NULL},
 	{1, AFDRV_WV511AAF, WV511AAF_SetI2Cclient, WV511AAF_Ioctl,
@@ -267,7 +261,7 @@ static int af_pinctrl_set(int pin, int state)
 static struct regulator *regVCAMAF;
 static int g_regVCAMAFEn;
 
-void AFRegulatorCtrl(int Stage)
+static void AFRegulatorCtrl(int Stage)
 {
 	LOG_INF("AFIOC_S_SETPOWERCTRL regulator_put %p\n", regVCAMAF);
 
@@ -297,10 +291,6 @@ void AFRegulatorCtrl(int Stage)
 					"k6833v1_64_6360_alpha", 20) == 0) {
 					regVCAMAF =
 					regulator_get(lens_device, "vmch");
-				} else if (strncmp(CONFIG_ARCH_MTK_PROJECT,
-					"k6833v1_64", 10) == 0) {
-					regVCAMAF =
-					regulator_get(lens_device, "vibr");
 				} else {
 					#if defined(CONFIG_REGULATOR_MT6317)
 					regVCAMAF =
@@ -308,8 +298,8 @@ void AFRegulatorCtrl(int Stage)
 					LOG_INF("regulator_get(%s)\n", "mt6317-ldo3");
 					#else
 					regVCAMAF =
-					regulator_get(lens_device, "vcamio");
-					LOG_INF("regulator_get(%s)\n", "vcamio");
+					regulator_get(lens_device, "vtp");
+					LOG_INF("regulator_get(%s)\n", "vtp");
 					#endif
 				}
 				#elif defined(CONFIG_MACH_MT6853)
@@ -319,7 +309,7 @@ void AFRegulatorCtrl(int Stage)
 					regulator_get(lens_device, "vmch");
 				} else {
 					regVCAMAF =
-					regulator_get(lens_device, "vcamio");
+					regulator_get(lens_device, "vtp");
 				}
 				#elif defined(CONFIG_MACH_MT6873)
 				if (strncmp(CONFIG_ARCH_MTK_PROJECT,
@@ -330,9 +320,6 @@ void AFRegulatorCtrl(int Stage)
 					regVCAMAF =
 					regulator_get(lens_device, "vcamio");
 				}
-				#elif defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
-				regVCAMAF =
-					regulator_get(lens_device, "rt5133-ldo3");
 				#elif defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6893)
 				if (strncmp(CONFIG_ARCH_MTK_PROJECT,
 					"k6885v1_64_alpha", 16) == 0) {

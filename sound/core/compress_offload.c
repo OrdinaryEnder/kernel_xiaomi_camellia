@@ -667,15 +667,6 @@ static int snd_compr_pause(struct snd_compr_stream *stream)
 {
 	int retval;
 
-	if (stream->runtime->state == SNDRV_PCM_STATE_DRAINING) {
-		retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_PUSH);
-		if (!retval) {
-			stream->runtime->state = SNDRV_PCM_STATE_PAUSED;
-			wake_up(&stream->runtime->sleep);
-		}
-		return retval;
-	}
-
 	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING)
 		return -EPERM;
 	retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_PUSH);
@@ -687,9 +678,6 @@ static int snd_compr_pause(struct snd_compr_stream *stream)
 static int snd_compr_resume(struct snd_compr_stream *stream)
 {
 	int retval;
-
-	if (stream->runtime->state == SNDRV_PCM_STATE_DRAINING)
-		return stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_RELEASE);
 
 	if (stream->runtime->state != SNDRV_PCM_STATE_PAUSED)
 		return -EPERM;
@@ -735,9 +723,6 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 
 	retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_STOP);
 	if (!retval) {
-		/* clear flags and stop any drain wait */
-		stream->partial_drain = false;
-		stream->metadata_set = false;
 		snd_compr_drain_notify(stream);
 		stream->runtime->total_bytes_available = 0;
 		stream->runtime->total_bytes_transferred = 0;
@@ -895,7 +880,6 @@ static int snd_compr_partial_drain(struct snd_compr_stream *stream)
 	if (stream->next_track == false)
 		return -EPERM;
 
-	stream->partial_drain = true;
 	retval = stream->ops->trigger(stream, SND_COMPR_TRIGGER_PARTIAL_DRAIN);
 	if (retval) {
 		pr_debug("Partial drain returned failure\n");
