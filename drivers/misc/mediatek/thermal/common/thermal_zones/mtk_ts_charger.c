@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -54,10 +53,8 @@ static kgid_t gid = KGIDT_INIT(1000);
 static DEFINE_SEMAPHORE(sem_mutex);
 
 static int kernelmode;
-/* BSP.Charge - 2020.12.11 - modify auto polling delay */
 static unsigned int interval = 2; /* seconds, 0 : no auto polling */
 static int num_trip = 1;
-/* BSP.Charge - 2020.12.11 - modify trip temp */
 static int trip_temp[10] = { 120000, 110000, 100000, 90000, 80000,
 				70000, 65000, 60000, 55000, 50000 };
 

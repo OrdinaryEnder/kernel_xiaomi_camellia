@@ -60,15 +60,10 @@ obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
 
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
+obj-$(CONFIG_BATT_VERIFY_BY_DS28E16) += maxim/
 obj-$(CONFIG_MEDIATEK_SOLUTION) += mediatek/
-# BSP.System - 2020.10.28 - add hw_info
-obj-$(CONFIG_HQ_SYSFS_SUPPORT) 	+= hqsysfs/
-# BSP.System - 2020.10.30 - add cpu id
-obj-$(CONFIG_SERIAL_NUM) += serial_num.o
-#BSP.Security - 2020.12.19 - add debugpolicy feature
-obj-$(CONFIG_DEBUG_POLICY) += debug_policy.o
-#BSP.System - 2020.12.20 - add chip_id feature
-obj-$(CONFIG_CHIP_ID) += chip_id.o
+
+obj-$(CONFIG_SIMTRAY_STATUS)	+= simtray.o
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o
@@ -78,12 +73,14 @@ lkdtm-$(CONFIG_LKDTM)		+= lkdtm_refcount.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_rodata_objcopy.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_usercopy.o
 
+obj-y                           += hardware_info.o
+
 KCOV_INSTRUMENT_lkdtm_rodata.o	:= n
 CFLAGS_lkdtm_rodata.o		+= $(DISABLE_LTO)
 
 OBJCOPYFLAGS :=
 OBJCOPYFLAGS_lkdtm_rodata_objcopy.o := \
-	--rename-section .text=.rodata,alloc,readonly,load
+	--rename-section .text=.rodata,alloc,readonly,load,contents
 targets += lkdtm_rodata.o lkdtm_rodata_objcopy.o
 $(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
 	$(call if_changed,objcopy)

@@ -378,6 +378,10 @@ static int mtk_spi_prepare_message(struct spi_master *master,
 		writel(mdata->pad_sel[spi->chip_select],
 		       mdata->base + SPI_PAD_SEL_REG);
 
+	reg_val = readl(mdata->base + SPI_CFG1_REG);
+	reg_val &= 0x1FFFFFFF;
+	reg_val |= (chip_config->tick_delay << SPI_CFG1_GET_TICK_DLY_OFFSET);
+	writel(reg_val, mdata->base + SPI_CFG1_REG);
 	return 0;
 }
 
@@ -709,7 +713,7 @@ static irqreturn_t mtk_spi_interrupt(int irq, void *dev_id)
 	else
 		mdata->state = MTK_SPI_IDLE;
 
-	if (!master->can_dma(master, master->cur_msg->spi, trans)) {
+	if (!master->can_dma(master, NULL, trans)) {
 		if (trans->rx_buf) {
 			cnt = mdata->xfer_len / 4;
 			ioread32_rep(mdata->base + SPI_RX_DATA_REG,
@@ -814,7 +818,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->dev.of_node = pdev->dev.of_node;
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 
-	master->set_cs = mtk_spi_set_cs;
 	master->prepare_message = mtk_spi_prepare_message;
 	master->unprepare_message = mtk_spi_unprepare_message;
 	master->transfer_one = mtk_spi_transfer_one;
@@ -848,6 +851,10 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		else
 			master->rt = false;
 	}
+
+	/* avoid access spi register when accessed only in tee in case devapc error */
+	if (!of_property_read_bool(pdev->dev.of_node, "tee-only"))
+		master->set_cs = mtk_spi_set_cs;
 
 	if (mdata->dev_comp->need_pad_sel) {
 		mdata->pad_num = of_property_count_u32_elems(
@@ -953,23 +960,21 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	ret = devm_spi_register_master(&pdev->dev, master);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register master (%d)\n", ret);
-		clk_disable(mdata->spi_clk);
-		goto err_disable_runtime_pm;
-	}
-
 	mdata->spi_clk_hz = clk_get_rate(mdata->spi_clk);
 	clk_disable(mdata->spi_clk);
 
 	if (mdata->dev_comp->need_pad_sel) {
 		if (mdata->pad_num != master->num_chipselect) {
-			dev_err(&pdev->dev,
-				"pad_num does not match num_chipselect(%d != %d)\n",
-				mdata->pad_num, master->num_chipselect);
-			ret = -EINVAL;
-			goto err_disable_runtime_pm;
+			if(mdata->pad_num == 2) {
+				// for fucking sake, can you detect the touch panel without making me insane
+				mdata->pad_num = 1;
+			} else {
+				dev_err(&pdev->dev,
+					"pad_num does not match num_chipselect(%d != %d)\n",
+					mdata->pad_num, master->num_chipselect);
+				ret = -EINVAL;
+				goto err_disable_runtime_pm;
+			}
 		}
 
 		if (!master->cs_gpios && master->num_chipselect > 1) {
@@ -1011,6 +1016,12 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	pm_qos_add_request(&mdata->spi_qos_request, PM_QOS_CPU_DMA_LATENCY,
 		PM_QOS_DEFAULT_VALUE);
 
+	ret = devm_spi_register_master(&pdev->dev, master);
+	if (ret) {
+		dev_notice(&pdev->dev, "failed to register master (%d)\n", ret);
+		clk_disable(mdata->spi_clk);
+		goto err_disable_runtime_pm;
+	}
 	return 0;
 
 err_disable_runtime_pm:

@@ -1154,6 +1154,16 @@ static int32_t c_show_selftest(struct seq_file *m, void *v)
 		}
 	}
 
+/*	if (strstr(saved_command_line, "dsi_panel_K19_43_02_0b_vdo")) {
+		seq_printf(m, "0P-1P-2P-3P-4P\n");
+	} else {
+		seq_printf(m, "0%c-1%c-2%c-3%c-4%c\n",
+		test_result_bmp[0],
+		test_result_bmp[1],
+		test_result_bmp[2],
+		test_result_bmp[3],
+		test_result_bmp[4]);
+	}*/
 	seq_printf(m, "0%c-1%c-2%c-3%c-4%c\n",
 		test_result_bmp[0],
 		test_result_bmp[1],
@@ -1161,7 +1171,6 @@ static int32_t c_show_selftest(struct seq_file *m, void *v)
 		test_result_bmp[3],
 		test_result_bmp[4]);
 
-/*	seq_printf(m, "0P-1P-2P-3P-4P\n");*/
 	nvt_mp_test_result_printed = 1;
 
 	NVT_LOG("--\n");
@@ -1228,7 +1237,7 @@ return:
 static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 {
 	struct device_node *np = ts->client->dev.of_node;
-	unsigned char mpcriteria[4096] = {0};	//novatek-mp-criteria-default
+	unsigned char mpcriteria[1024] = {0};	//novatek-mp-criteria-default
 
 	uint8_t buf[8] = {0};
 	TestResult_SPI_Comm = 0;
@@ -1284,7 +1293,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 		 * Ex. nvt_pid = 500A
 		 *     mpcriteria = "novatek-mp-criteria-500A"
 		 */
-		snprintf(mpcriteria, PAGE_SIZE, "novatek-mp-criteria-%04X", ts->nvt_pid);
+		snprintf(mpcriteria, 1024, "novatek-mp-criteria-%04X", ts->nvt_pid);
 
 		if (nvt_mp_parse_dt(np, mpcriteria)) {
 			//---Download Normal FW---
@@ -1727,8 +1736,9 @@ extern uint8_t	bTouchIsAwake;
 static int32_t c_tp_selftest_show(struct seq_file *m, void *v)
 {
 	NVT_LOG("+++\n");
-
-	nvt_mp_printf("FW Version: %d\n\n", ts->fw_ver);
+	/* Huaqin modify for TP MP version by zhangjiangbin at 2021/07/13 start */	
+	nvt_mp_printf("FW Version: %d\n\n", fw_ver);
+	/* Huaqin modify for TP MP version by zhangjiangbin at 2021/07/13 end */
 	if (!TP_SELFTEST_SPI_flag && !TP_SELFTEST_Open_flag &&
 		!TP_SELFTEST_Short_flag) {
 		seq_printf(m, "%d\n", 0);
@@ -1774,7 +1784,7 @@ static ssize_t nvt_tp_selftest_store(struct file *file, const char __user *buff,
 	char *buff_tmp = kzalloc(count + 1, GFP_KERNEL);
 
 	struct device_node *np = ts->client->dev.of_node;
-	unsigned char mpcriteria[4096] = {0}; //novatek-mp-criteria-default
+	unsigned char mpcriteria[1024] = {0}; //novatek-mp-criteria-default
 
 	TestResult_Short = 0;
 	TestResult_Open = 0;
@@ -1854,6 +1864,9 @@ static ssize_t nvt_tp_selftest_store(struct file *file, const char __user *buff,
 		NVT_ERR("get fw info fail!\n");
 		return -EAGAIN;
 	}
+	/* Huaqin modify for TP MP version by zhangjiangbin at 2021/07/13 start */
+	fw_ver = ts->fw_ver;
+	/* Huaqin modify for TP MP version by zhangjiangbin at 2021/07/13 end */
 	/* Parsing criteria from dtscount */
 	if (of_property_read_bool(np, "novatek,mp-support-dt")) {
 		/*
@@ -1864,7 +1877,7 @@ static ssize_t nvt_tp_selftest_store(struct file *file, const char __user *buff,
 		* Ex. nvt_pid = 500A
 		*	   mpcriteria = "novatek-mp-criteria-500A"
 		*/
-		snprintf(mpcriteria, PAGE_SIZE, "novatek-mp-criteria-%04X", ts->nvt_pid);
+		snprintf(mpcriteria, 1024, "novatek-mp-criteria-%04X", ts->nvt_pid);
 
 		if (nvt_mp_parse_dt(np, mpcriteria)) {
 			//---Download Normal FW---

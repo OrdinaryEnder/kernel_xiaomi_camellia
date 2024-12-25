@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -167,7 +166,6 @@ enum {
 enum ppm_policy {
 	PPM_POLICY_PTPOD = 0, /* highest priority */
 	PPM_POLICY_UT,
-	PPM_POLICY_SYS_BOOST,
 	PPM_POLICY_FORCE_LIMIT,
 	PPM_POLICY_PWR_THRO,
 	PPM_POLICY_THERMAL,
@@ -175,6 +173,7 @@ enum ppm_policy {
 	PPM_POLICY_HARD_USER_LIMIT,
 	PPM_POLICY_USER_LIMIT,
 	PPM_POLICY_LCM_OFF,
+	PPM_POLICY_SYS_BOOST,
 	PPM_POLICY_HICA,
 
 	NR_PPM_POLICIES,

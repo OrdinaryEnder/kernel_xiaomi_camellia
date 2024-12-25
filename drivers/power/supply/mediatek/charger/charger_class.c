@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -267,6 +266,18 @@ int charger_dev_get_eoc_current(struct charger_device *chg_dev, u32 *uA)
 	return -ENOTSUPP;
 }
 EXPORT_SYMBOL(charger_dev_get_eoc_current);
+
+int charger_dev_set_vrechg(struct charger_device *chg_dev, u32 uV)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->set_vrechg)
+		return chg_dev->ops->set_vrechg(chg_dev, uV);
+
+	return -ENOTSUPP;
+}
+
+EXPORT_SYMBOL(charger_dev_set_vrechg);
+
 
 int charger_dev_kick_wdt(struct charger_device *chg_dev)
 {
@@ -620,13 +631,18 @@ int charger_dev_enable_chg_type_det(struct charger_device *chg_dev, bool en)
 }
 EXPORT_SYMBOL(charger_dev_enable_chg_type_det);
 
-/* BSP.Charger - 2020.11.11 - add usb_otg node */
-bool usb_otg;
+int charger_dev_rerun_apsd(struct charger_device *chg_dev, bool en)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->rerun_apsd)
+		return chg_dev->ops->rerun_apsd(chg_dev, en);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_rerun_apsd);
+
 int charger_dev_enable_otg(struct charger_device *chg_dev, bool en)
 {
-/* BSP.Charger - 2020.11.11 - add usb_otg node */
-	usb_otg = en;
-	pr_err("%s:usb_otg = %d\n", __func__, usb_otg);
 	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->enable_otg)
 		return chg_dev->ops->enable_otg(chg_dev, en);
 

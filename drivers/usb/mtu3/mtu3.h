@@ -313,11 +313,15 @@ struct ssusb_mtk {
 	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
 	bool wakeup_en;
+	struct regmap *uwk;
+	u32 uwk_reg_base;
+	u32 uwk_vers;
 	/* keep clock and phy always on*/
 	bool keep_ao;
 	/* keep infra power on*/
 	bool infra_on;
 	bool force_vbus;
+	bool noise_still_tr;
 	bool u1u2_disable;
 	bool u3_loopb_support;
 	struct clk *wk_deb_p0;

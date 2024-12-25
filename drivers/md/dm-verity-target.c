@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Author: Mikulas Patocka <mpatocka@redhat.com>
  *
@@ -517,6 +516,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 	struct bvec_iter start;
 	unsigned b;
 	struct verity_result res;
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
@@ -571,9 +571,17 @@ static int verity_verify_io(struct dm_verity_io *io)
 		else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
 					   cur_block, NULL, &start) == 0)
 			continue;
-		else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
+		else {
+			if (bio->bi_status) {
+				/*
+				 * Error correction failed; Just return error
+				 */
+				return -EIO;
+			}
+			if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
 					   cur_block))
-			return -EIO;
+				return -EIO;
+		}
 	}
 
 	return 0;
@@ -1239,6 +1247,7 @@ bad:
 
 static struct target_type verity_target = {
 	.name		= "verity",
+	.features	= DM_TARGET_IMMUTABLE,
 	.version	= {1, 4, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,

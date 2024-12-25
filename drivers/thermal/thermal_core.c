@@ -25,14 +25,11 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <linux/suspend.h>
-
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 #include <linux/cpu_cooling.h>
 #ifdef CONFIG_FB
 #include <linux/fb.h>
 #include <linux/notifier.h>
 #endif
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal.h>
@@ -40,14 +37,12 @@
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework */
 #include "../misc/mediatek/base/power/include/ppm_v3/mtk_ppm_api.h"
 
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
 MODULE_LICENSE("GPL v2");
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework */
 #define CPU_LIMITS_PARAM_NUM    2
 
 static DEFINE_IDA(thermal_tz_ida);
@@ -61,7 +56,6 @@ static DEFINE_MUTEX(thermal_list_lock);
 static DEFINE_MUTEX(thermal_governor_lock);
 static DEFINE_MUTEX(poweroff_lock);
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 #ifdef CONFIG_FB
 struct screen_monitor {
 	struct notifier_block thermal_notifier;
@@ -69,12 +63,10 @@ struct screen_monitor {
 };
 struct screen_monitor sm;
 #endif
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 static atomic_t in_suspend;
 static bool power_off_triggered;
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 static atomic_t switch_mode = ATOMIC_INIT(-1);
 static atomic_t temp_state = ATOMIC_INIT(0);
 static atomic_t lighter_event = ATOMIC_INIT(0);
@@ -82,7 +74,6 @@ static char boost_buf[128];
 static struct device thermal_message_dev;
 const char *board_sensor = "VIRTUAL-SENSOR";
 static char board_sensor_temp[128];
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 static struct thermal_governor *def_governor;
 
@@ -265,15 +256,14 @@ int thermal_build_list_of_policies(char *buf)
 {
 	struct thermal_governor *pos;
 	ssize_t count = 0;
-	ssize_t size = PAGE_SIZE;
 
 	mutex_lock(&thermal_governor_lock);
 
 	list_for_each_entry(pos, &thermal_governor_list, governor_list) {
-		size = PAGE_SIZE - count;
-		count += scnprintf(buf + count, size, "%s ", pos->name);
+		count += scnprintf(buf + count, PAGE_SIZE - count, "%s ",
+				   pos->name);
 	}
-	count += scnprintf(buf + count, size, "\n");
+	count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 
 	mutex_unlock(&thermal_governor_lock);
 
@@ -494,6 +484,8 @@ static void thermal_zone_device_init(struct thermal_zone_device *tz)
 {
 	struct thermal_instance *pos;
 	tz->temperature = THERMAL_TEMP_INVALID;
+	tz->prev_low_trip = -INT_MAX;
+	tz->prev_high_trip = INT_MAX;
 	list_for_each_entry(pos, &tz->thermal_instances, tz_node)
 		pos->initialized = false;
 }
@@ -1189,7 +1181,6 @@ exit:
 	mutex_unlock(&thermal_list_lock);
 }
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 static ssize_t
 thermal_sconfig_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1453,7 +1444,6 @@ static int screen_state_for_thermal_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 #endif
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 /**
  * thermal_zone_device_register() - register a new thermal zone device
@@ -1606,7 +1596,7 @@ free_tz:
 EXPORT_SYMBOL_GPL(thermal_zone_device_register);
 
 /**
- * thermal_device_unregister - removes the registered thermal zone device
+ * thermal_zone_device_unregister - removes the registered thermal zone device
  * @tz: the thermal zone device to remove
  */
 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
@@ -1832,7 +1822,6 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 static int of_parse_thermal_message(void)
 {
 	struct device_node *np;
@@ -1848,7 +1837,6 @@ static int of_parse_thermal_message(void)
 
 	return 0;
 }
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 static int __init thermal_init(void)
 {
@@ -1863,7 +1851,6 @@ static int __init thermal_init(void)
 	if (result)
 		goto unregister_governors;
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 #ifdef CONFIG_FB
 	sm.thermal_notifier.notifier_call = screen_state_for_thermal_callback;
 	if (fb_register_client(&sm.thermal_notifier) < 0) {
@@ -1875,7 +1862,6 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: create thermal message node failed, \
 			return %d\n", result);
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 	result = genetlink_init();
 	if (result)
@@ -1898,12 +1884,11 @@ unregister_class:
 	class_unregister(&thermal_class);
 unregister_governors:
 	thermal_unregister_governors();
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 	destroy_thermal_message_node();
 	#ifdef CONFIG_FB
 	fb_unregister_client(&sm.thermal_notifier);
 	#endif
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
+
 error:
 	ida_destroy(&thermal_tz_ida);
 	ida_destroy(&thermal_cdev_ida);

@@ -3,6 +3,7 @@
  * Copyright (c) 2019 MediaTek Inc.
  */
 
+#include <linux/atomic.h>
 #include <linux/cpuidle.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -13,9 +14,20 @@
 #include <linux/cpumask.h>
 #include <linux/syscore_ops.h>
 #include <linux/suspend.h>
+#include <linux/timekeeping.h>
 #include <linux/rtc.h>
+#include <linux/hrtimer.h>
+#include <linux/timer.h>
+#include <linux/completion.h>
+#include <linux/jiffies.h>
 #include <asm/cpuidle.h>
 #include <asm/suspend.h>
+
+#include <linux/sched.h>
+#include <linux/kthread.h>
+#include <linux/sched/signal.h>
+#include <linux/spinlock.h>
+#include <uapi/linux/sched/types.h>
 
 #include <mtk_lpm.h>
 #include <mtk_lpm_module.h>
@@ -24,16 +36,17 @@
 #include <mtk_lpm_call_type.h>
 #include <mtk_dbg_common_v1.h>
 #include <mt-plat/mtk_ccci_common.h>
-
+#include <uapi/linux/sched/types.h>
 #include "mt6853.h"
 #include "mt6853_suspend.h"
 
 unsigned int mt6853_suspend_status;
+static struct cpumask abort_cpumask;
+static DEFINE_SPINLOCK(lpm_abort_locker);
 struct md_sleep_status before_md_sleep_status;
 struct md_sleep_status after_md_sleep_status;
 struct cpumask s2idle_cpumask;
 struct mtk_lpm_model mt6853_model_suspend;
-
 
 void __attribute__((weak)) subsys_if_on(void)
 {
@@ -188,7 +201,7 @@ static void __mt6853_suspend_reflect(int type, int cpu,
 	printk_deferred("[name:spm&][%s:%d] - resume\n",
 			__func__, __LINE__);
 
-	/* do not call issuer when prepare fail */
+	/* skip calling issuer when prepare fail*/
 	if (mt6853_model_suspend.flag & MTK_LP_PREPARE_FAIL)
 		return;
 
@@ -254,14 +267,13 @@ int mt6853_suspend_s2idle_prepare_enter(int prompt, int cpu,
 
 	return ret;
 }
+
 void mt6853_suspend_s2idle_reflect(int cpu,
 					const struct mtk_lpm_issuer *issuer)
 {
 	if (cpumask_weight(&s2idle_cpumask) == num_online_cpus()) {
 		__mt6853_suspend_reflect(MTK_LPM_SUSPEND_S2IDLE,
 					 cpu, issuer);
-
-
 #ifdef CONFIG_PM_SLEEP
 		/* Notice
 		 * Fix the rcu_idle/timekeeping workaround later.
@@ -275,6 +287,7 @@ void mt6853_suspend_s2idle_reflect(int cpu,
 
 		if (mt6853_model_suspend.flag & MTK_LP_PREPARE_FAIL)
 			mt6853_model_suspend.flag &= (~MTK_LP_PREPARE_FAIL);
+
 #endif
 	}
 	cpumask_clear_cpu(cpu, &s2idle_cpumask);
@@ -287,6 +300,7 @@ void mt6853_suspend_s2idle_reflect(int cpu,
 	mt6853_model_suspend.op.reflect = _reflect; })
 
 
+
 struct mtk_lpm_model mt6853_model_suspend = {
 	.flag = MTK_LP_REQ_NONE,
 	.op = {
@@ -296,11 +310,46 @@ struct mtk_lpm_model mt6853_model_suspend = {
 };
 
 #ifdef CONFIG_PM
+#define CPU_NUMBER (NR_CPUS)
+
+struct mtk_lpm_abort_control {
+	struct task_struct *ts;
+	int cpu;
+};
+static struct mtk_lpm_abort_control mtk_lpm_ac[CPU_NUMBER];
+static int mtk_lpm_in_suspend;
+static int mtk_lpm_monitor_thread(void *data)
+{
+	struct sched_param param = {.sched_priority = 99 };
+	struct mtk_lpm_abort_control *lpm_ac;
+
+	lpm_ac = (struct mtk_lpm_abort_control *)data;
+
+	sched_setscheduler(current, SCHED_FIFO, &param);
+	allow_signal(SIGKILL);
+
+	msleep_interruptible(5000);
+
+	pm_system_wakeup();
+	if (mtk_lpm_in_suspend == 1)
+		pr_info("[name:spm&][SPM] wakeup system due to not entering suspend(%d)\n",
+				lpm_ac->cpu);
+
+	spin_lock(&lpm_abort_locker);
+	if (cpumask_test_cpu(lpm_ac->cpu, &abort_cpumask))
+		cpumask_clear_cpu(lpm_ac->cpu, &abort_cpumask);
+	spin_unlock(&lpm_abort_locker);
+
+	do_exit(0);
+}
+
+static int suspend_online_cpus;
 static int mt6853_spm_suspend_pm_event(struct notifier_block *notifier,
 			unsigned long pm_event, void *unused)
 {
 	struct timespec ts;
 	struct rtc_time tm;
+	int i;
 
 	getnstimeofday(&ts);
 	rtc_time_to_tm(ts.tv_sec, &tm);
@@ -317,14 +366,37 @@ static int mt6853_spm_suspend_pm_event(struct notifier_block *notifier,
 		"[name:spm&][SPM] PM: suspend entry %d-%02d-%02d %02d:%02d:%02d.%09lu UTC\n",
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
-
+		suspend_online_cpus = num_online_cpus();
+		cpumask_clear(&abort_cpumask);
+		mtk_lpm_in_suspend = 1;
+		for (i = 0; i < suspend_online_cpus; i++) {
+			cpumask_set_cpu(i, &abort_cpumask);
+			mtk_lpm_ac[i].ts = kthread_create(mtk_lpm_monitor_thread,
+					&mtk_lpm_ac[i], "LPM-%d", i);
+			mtk_lpm_ac[i].cpu = i;
+			if (!IS_ERR(mtk_lpm_ac[i].ts)) {
+				kthread_bind(mtk_lpm_ac[i].ts, i);
+				wake_up_process(mtk_lpm_ac[i].ts);
+			} else {
+				pr_info("[name:spm&][SPM] create LPM monitor thread fail\n");
+				return NOTIFY_BAD;
+			}
+		}
 		return NOTIFY_DONE;
 	case PM_POST_SUSPEND:
+		mtk_lpm_in_suspend = 0;
+		if (!cpumask_empty(&abort_cpumask)) {
+			pr_info("[name:spm&][SPM] check cpumask %*pb\n",
+					cpumask_pr_args(&abort_cpumask));
+			for (i = 0; i < suspend_online_cpus; i++) {
+				if (cpumask_test_cpu(i, &abort_cpumask))
+					send_sig(SIGKILL, mtk_lpm_ac[i].ts, 0);
+			}
+		}
 		printk_deferred(
 		"[name:spm&][SPM] PM: suspend exit %d-%02d-%02d %02d:%02d:%02d.%09lu UTC\n",
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
-
 		return NOTIFY_DONE;
 	}
 	return NOTIFY_OK;
@@ -334,7 +406,8 @@ static struct notifier_block mt6853_spm_suspend_pm_notifier_func = {
 	.notifier_call = mt6853_spm_suspend_pm_event,
 	.priority = 0,
 };
-#endif
+
+#endif /* CONFIG_PM */
 
 int __init mt6853_model_suspend_init(void)
 {
@@ -357,7 +430,6 @@ int __init mt6853_model_suspend_init(void)
 	}
 
 	cpumask_clear(&s2idle_cpumask);
-
 
 #ifdef CONFIG_PM
 	ret = register_pm_notifier(&mt6853_spm_suspend_pm_notifier_func);

@@ -51,13 +51,6 @@ struct nvt_ts_mem_map {
 	uint32_t DMA_CRC_EN_ADDR;
 	uint32_t BLD_ILM_DLM_CRC_ADDR;
 	uint32_t DMA_CRC_FLAG_ADDR;
-	uint32_t FFM2CPU_CTL;
-	uint32_t F2C_LENGTH;
-	uint32_t CPU_IF_ADDR_LOW;
-	uint32_t CPU_IF_ADDR_HIGH;
-	uint32_t FFM_ADDR_LOW;
-	uint32_t FFM_ADDR_MID;
-	uint32_t FFM_ADDR_HIGH;
 };
 
 struct nvt_ts_hw_info {
@@ -130,13 +123,6 @@ static const struct nvt_ts_mem_map NT36675_memory_map = {
 	.DMA_CRC_EN_ADDR          = 0x3F136,
 	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
 	.DMA_CRC_FLAG_ADDR        = 0x3F134,
-	.FFM2CPU_CTL              = 0x3F280,
-	.F2C_LENGTH               = 0x3F283,
-	.CPU_IF_ADDR_LOW          = 0x3F284,
-	.CPU_IF_ADDR_HIGH         = 0x3F285,
-	.FFM_ADDR_LOW             = 0x3F286,
-	.FFM_ADDR_MID             = 0x3F287,
-	.FFM_ADDR_HIGH            = 0x3F288,
 };
 
 static const struct nvt_ts_mem_map NT36672A_memory_map = {

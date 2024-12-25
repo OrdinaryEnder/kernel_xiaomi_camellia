@@ -13,6 +13,10 @@
 
 ifeq ($(CONFIG_MACH_MT6833),y)
 SMI_PLATFORM := "mt6833"
+else ifeq ($(CONFIG_MACH_MT6877),y)
+SMI_PLATFORM := "mt6877"
+else ifeq ($(CONFIG_MACH_MT6781),y)
+SMI_PLATFORM := "mt6781"
 else
 SMI_PLATFORM := $(CONFIG_MTK_PLATFORM)
 endif
@@ -66,12 +70,19 @@ ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6873" "mt6885"))
 ccflags-y += -DSMI_5G
 endif
 
-ifneq (,$(filter $(SMI_PLATFORM), "mt6873" "mt6885" "mt6853" "mt6833"))
+ifneq (,$(filter $(SMI_PLATFORM), "mt6873" "mt6885" "mt6853" "mt6833" "mt6877"))
 ccflags-y += -DSMI_SSPM
 ccflags-y += -DPMQOS_USE_IOMMU_PORT
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/v2/
 else
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/
+endif
+
+ifneq (,$(filter $(SMI_PLATFORM), "mt6781"))
+ccflags-y += -DSMI_SSPM
+ccflags-y += -DPMQOS_USE_IOMMU_PORT
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/mt6781
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/v2
 endif
 
 ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6739" "mt6771"))

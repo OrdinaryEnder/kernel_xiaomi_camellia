@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -50,10 +49,9 @@ struct keypad_dts_data {
 	u32 kpd_hw_recovery_key;
 	u32 kpd_hw_factory_key;
 };
-extern void long_press_reboot(unsigned long long_press_is_reboot);
+
 extern struct keypad_dts_data kpd_dts_data;
 extern int kpd_klog_en;
-
 #ifdef CONFIG_LONG_PRESS_MODE_EN
 extern atomic_t vol_down_long_press_flag;
 #endif

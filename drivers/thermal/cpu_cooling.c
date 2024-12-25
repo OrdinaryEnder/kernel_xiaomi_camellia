@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
-/* BSP.Charge - 2020.11.16 - Config thermal framework */
 #include <linux/of_device.h>
 
 #include <trace/events/thermal.h>
@@ -151,11 +150,9 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	/* BSP.Charge - 2020.11.16 - Config thermal framework */
 	unsigned long clipped_freq = ULONG_MAX;
 	struct cpufreq_cooling_device *cpufreq_cdev;
 
-	/* BSP.Charge - 2020.11.16 - Config thermal framework */
 	if (event != CPUFREQ_THERMAL)
 		return NOTIFY_DONE;
 
@@ -179,13 +176,10 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 		 * But, if clipped_freq is greater than policy->max, we don't
 		 * need to do anything.
 		 */
-		/* BSP.Charge - 2020.11.16 - Config thermal framework */
 		if (clipped_freq > cpufreq_cdev->clipped_freq)
 			clipped_freq = cpufreq_cdev->clipped_freq;
 	}
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 	cpufreq_verify_within_limits(policy, 0, clipped_freq);
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 	mutex_unlock(&cooling_list_lock);
 
 	return NOTIFY_OK;
@@ -456,7 +450,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 
 	/* Check if the old cooling action is same as new cooling action */
-	/* BSP.Charge - 2020.11.16 - Config thermal framework */
 	if (cpufreq_cdev->cpufreq_state == state)
 		return cpufreq_cdev->max_level;
 
@@ -464,16 +457,13 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	cpufreq_cdev->cpufreq_state = state;
 	cpufreq_cdev->clipped_freq = clip_freq;
 
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 	get_online_cpus();
 	cpufreq_update_policy(cpufreq_cdev->policy->cpu);
 	put_online_cpus();
-	/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 	return 0;
 }
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 {
 	struct cpufreq_cooling_device *cpufreq_cdev;
@@ -501,7 +491,6 @@ void cpu_limits_set_level(unsigned int cpu, unsigned int max_freq)
 		}
 	}
 }
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 /**
  * cpufreq_get_requested_power() - get the current power
@@ -911,7 +900,6 @@ cpufreq_power_cooling_register(struct cpufreq_policy *policy, u32 capacitance,
 }
 EXPORT_SYMBOL(cpufreq_power_cooling_register);
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
 int cpufreq_platform_cooling_register(void)
 {
 	struct cpufreq_policy *policy;
@@ -935,7 +923,6 @@ int cpufreq_platform_cooling_register(void)
 
 	return 0;
 }
-/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 /**
  * of_cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
@@ -1008,5 +995,4 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
 
-/* BSP.Charge - 2020.11.16 - Config thermal framework */
 late_initcall(cpufreq_platform_cooling_register)
